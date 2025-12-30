@@ -4,7 +4,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # App
-    SERVICE_NAME: str = "auth-service"
+    SERVICE_NAME: str = "uce-safe-ride"
     ENV: str = "local"
 
     # Security
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # DB
     DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride"
 
-    # UCE email domain constraint (for students)
+    # Domain constraints
     UCE_EMAIL_DOMAIN: str = "@uce.edu.ec"
 
 settings = Settings()

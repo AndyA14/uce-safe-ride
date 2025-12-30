@@ -10,8 +10,8 @@ services:
 
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/auth-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
       JWT_SECRET_KEY: super-secret-change-me
