@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: uce_safe_ride
+    ports:
+      - "5433:5432"
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      JWT_SECRET_KEY: super-secret-change-me
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      UCE_EMAIL_DOMAIN: "@uce.edu.ec"
+    depends_on:
+      - postgres
+    ports:
+      - "8001:8000"
+

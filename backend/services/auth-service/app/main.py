@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.api.v1.router import router as v1_router
 from app.db.init_db import init_db
+from app.db.session import wait_for_db
 from app.core.config import settings
 
 def create_app() -> FastAPI:
@@ -9,8 +10,10 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def _startup():
+        wait_for_db()
         init_db()
 
     return app
 
 app = create_app()
+
