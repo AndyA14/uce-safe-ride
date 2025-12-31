@@ -34,3 +34,17 @@ services:
       - postgres
     ports:
       - "8002:8000"
+
+  route-service:
+    build:
+      context: .
+      dockerfile: services/route-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      JWT_SECRET_KEY: super-secret-change-me
+      JWT_ISSUER: uce-safe-ride
+    depends_on:
+      - postgres
+    ports:
+      - "8003:8000"
+ 

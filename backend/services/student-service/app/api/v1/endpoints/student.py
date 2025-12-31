@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from sqlalchemy.orm import Session
 
+from app.core.security import require_role
 from app.core.config import settings
 from app.db.models import StudentProfile, FavouriteRoute, RouteUsage
 from shared.db.session import get_db
@@ -83,25 +84,16 @@ class RouteUsageOut(BaseModel):
 
 # -------------------- Endpoints --------------------
 
-@router.get("/me", response_model=ProfileOut)
-def my_profile(
-    user: CurrentUser = Depends(require_roles("STUDENT", "ADMIN")),
-    db: Session = Depends(get_db),
-):
-    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.user_id).first()
-    if not profile:
-        # “lazy create” para prototipo: si no existe, lo crea
-        profile = StudentProfile(user_id=user.user_id, email=user.email or "unknown@uce.edu.ec")
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
-
-    return ProfileOut(
-        user_id=profile.user_id,
-        email=profile.email,
-        full_name=profile.full_name,
-        phone=profile.phone,
-    )
+@router.get("/me")
+def get_me(principal=Depends(require_role("STUDENT"))):
+    user_id = principal["user_id"]
+    return {
+        "user_id": user_id,
+        "role": principal["role"],
+        "email": "unknown@uce.edu.ec",  # en el futuro, el email real vendrá de StudentProfile
+        "full_name": "Unknown Student",
+        "phone": "",
+    }
 
 
 @router.put("/me", response_model=ProfileOut)
