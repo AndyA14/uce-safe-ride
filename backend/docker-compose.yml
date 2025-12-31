@@ -6,7 +6,16 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: uce_safe_ride
     volumes:
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d uce_safe_ride"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   auth-service:
     build:
@@ -17,10 +26,12 @@ services:
       JWT_SECRET_KEY: super-secret-change-me
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
       UCE_EMAIL_DOMAIN: "@uce.edu.ec"
+      JWT_ISSUER: uce-safe-ride
     depends_on:
       - postgres
     ports:
       - "8001:8000"
+    restart: unless-stopped
 
   student-service:
     build:
@@ -34,6 +45,7 @@ services:
       - postgres
     ports:
       - "8002:8000"
+    restart: unless-stopped
 
   route-service:
     build:
@@ -47,4 +59,24 @@ services:
       - postgres
     ports:
       - "8003:8000"
+    restart: unless-stopped
+
+  vehicle-service:
+    build:
+      context: .
+      dockerfile: services/vehicle-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      JWT_SECRET_KEY: super-secret-change-me
+      JWT_ISSUER: uce-safe-ride
+    depends_on:
+      - postgres
+    ports:
+      - "8004:8000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+
  
