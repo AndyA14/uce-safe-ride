@@ -5,7 +5,7 @@ from app.db.init_db import init_db
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Vehicle Service")
-    app.include_router(v1_router, prefix="/api/v1")
+    app.include_router(v1_router)
 
     @app.on_event("startup")
     def startup():

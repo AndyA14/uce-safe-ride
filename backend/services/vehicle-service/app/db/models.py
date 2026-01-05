@@ -1,17 +1,23 @@
-from sqlalchemy import Column, String, Boolean, DateTime
+import uuid
+from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-import uuid
+
 from app.db.base import Base
+
 
 class Vehicle(Base):
     __tablename__ = "vehicles"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    plate = Column(String, unique=True, nullable=False)
-    brand = Column(String, nullable=False)
-    model = Column(String, nullable=False)
-    active = Column(Boolean, default=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    plate = Column(String, unique=True, nullable=False, index=True)
+
+    vehicle_type = Column(String, nullable=False)  # BUS | MINIBUS | VAN
+    capacity = Column(Integer, nullable=False)
+
+    status = Column(String, nullable=False, default="AVAILABLE")  # AVAILABLE | IN_ROUTE | FULL | MAINTENANCE
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
 

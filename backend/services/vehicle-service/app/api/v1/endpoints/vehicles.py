@@ -7,14 +7,14 @@ from app.db.sessions import get_db
 from app.db.models import Vehicle
 from app.api.v1.schemas.vehicles import (
     VehicleCreateIn,
+    VehicleOut,
     VehicleUpdateIn,
     VehicleStatusUpdateIn,
-    VehicleOut,
 )
-from app.api.v1.schemas.vehicles import VehicleStatusUpdateIn
 from app.core.security import require_role
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
+
 
 
 @router.post(
@@ -30,9 +30,9 @@ def create_vehicle(payload: VehicleCreateIn, db: Session = Depends(get_db)):
 
     v = Vehicle(
         plate=payload.plate,
-        brand=payload.brand,
-        model=payload.model,
-        active=payload.active,
+        vehicle_type=payload.vehicle_type,
+        capacity=payload.capacity,
+        status=payload.status,
     )
     db.add(v)
     db.commit()
@@ -71,20 +71,37 @@ def update_vehicle(vehicle_id: UUID, payload: VehicleUpdateIn, db: Session = Dep
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
-    if payload.plate is not None:
-        # evitar duplicado
+    if payload.plate is not None and payload.plate != v.plate:
         existing = db.query(Vehicle).filter(Vehicle.plate == payload.plate, Vehicle.id != vehicle_id).first()
         if existing:
             raise HTTPException(status_code=409, detail="Vehicle plate already exists")
         v.plate = payload.plate
 
-    if payload.brand is not None:
-        v.brand = payload.brand
-    if payload.model is not None:
-        v.model = payload.model
-    if payload.active is not None:
-        v.active = payload.active
+    if payload.vehicle_type is not None:
+        v.vehicle_type = payload.vehicle_type
 
+    if payload.capacity is not None:
+        v.capacity = payload.capacity
+
+    if payload.status is not None:
+        v.status = payload.status
+
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+@router.patch(
+    "/{vehicle_id}/status",
+    response_model=VehicleOut,
+    dependencies=[Depends(require_role(["ADMIN", "DRIVER"]))],
+)
+def set_vehicle_status(vehicle_id: UUID, payload: VehicleStatusUpdateIn, db: Session = Depends(get_db)):
+    v = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    v.status = payload.status
     db.commit()
     db.refresh(v)
     return v
@@ -103,19 +120,3 @@ def delete_vehicle(vehicle_id: UUID, db: Session = Depends(get_db)):
     db.delete(v)
     db.commit()
     return None
-
-
-@router.patch(
-    "/{vehicle_id}/status",
-    response_model=VehicleOut,
-    dependencies=[Depends(require_role(["ADMIN"]))],
-)
-def set_vehicle_status(vehicle_id: UUID, payload: VehicleStatusUpdateIn, db: Session = Depends(get_db)):
-    v = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
-    if not v:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-
-    v.active = payload.active
-    db.commit()
-    db.refresh(v)
-    return v

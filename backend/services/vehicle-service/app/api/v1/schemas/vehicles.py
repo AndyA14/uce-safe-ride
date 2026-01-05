@@ -1,31 +1,35 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from uuid import UUID
+from typing import Literal, Optional
+
+VehicleType = Literal["BUS", "MINIBUS"]
+VehicleStatus = Literal["AVAILABLE", "IN_ROUTE", "FULL", "MAINTENANCE"]
 
 
-class VehicleCreateIn(BaseModel):
-    plate: str = Field(min_length=5, max_length=20)
-    brand: str = Field(min_length=1, max_length=80)
-    model: str = Field(min_length=1, max_length=80)
-    active: bool = True
+class VehicleBase(BaseModel):
+    plate: str
+    vehicle_type: VehicleType
+    capacity: int
+    status: VehicleStatus = "AVAILABLE"
+
+
+class VehicleCreateIn(VehicleBase):
+    pass
 
 
 class VehicleUpdateIn(BaseModel):
-    plate: str | None = Field(default=None, min_length=5, max_length=20)
-    brand: str | None = Field(default=None, min_length=1, max_length=80)
-    model: str | None = Field(default=None, min_length=1, max_length=80)
-    active: bool | None = None
+    plate: Optional[str] = None
+    vehicle_type: Optional[VehicleType] = None
+    capacity: Optional[int] = None
+    status: Optional[VehicleStatus] = None
 
 
 class VehicleStatusUpdateIn(BaseModel):
-    active: bool
+    status: VehicleStatus
 
 
-class VehicleOut(BaseModel):
+class VehicleOut(VehicleBase):
     id: UUID
-    plate: str
-    brand: str
-    model: str
-    active: bool
 
     class Config:
         from_attributes = True
