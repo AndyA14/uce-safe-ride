@@ -23,7 +23,7 @@ services:
       dockerfile: services/auth-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
-      JWT_SECRET_KEY: super-secret-change-me
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
       UCE_EMAIL_DOMAIN: "@uce.edu.ec"
       JWT_ISSUER: uce-safe-ride
@@ -39,7 +39,7 @@ services:
       dockerfile: services/student-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_student
-      JWT_SECRET_KEY: super-secret-change-me
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ISSUER: uce-safe-ride
     depends_on:
       - postgres
@@ -53,7 +53,7 @@ services:
       dockerfile: services/route-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
-      JWT_SECRET_KEY: super-secret-change-me
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ISSUER: uce-safe-ride
     depends_on:
       - postgres
@@ -67,7 +67,7 @@ services:
       dockerfile: services/vehicle-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
-      JWT_SECRET_KEY: super-secret-change-me
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ISSUER: uce-safe-ride
     depends_on:
       - postgres
@@ -75,8 +75,19 @@ services:
       - "8004:8000"
     restart: unless-stopped
 
+  driver-service:
+    build:
+      context: ./services/driver-service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      JWT_SECRET_KEY: super-secret-change-me
+      JWT_ISSUER: uce-safe-ride
+    depends_on:
+      - postgres
+    ports:
+      - "8005:8000"
+    restart: unless-stopped
+
 volumes:
   postgres_data:
-
-
- 
