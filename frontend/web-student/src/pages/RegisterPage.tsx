@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/auth.service';
+import { registerApi } from '../features/auth/api';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      await authService.register({
+      await registerApi({
         email,
         password,
         role: 'STUDENT',

@@ -1,5 +1,5 @@
 import { createContext, useState } from 'react';
-import type { AuthResponse } from '../data-models/auth.interface';
+import type { AuthResponse } from './types';
 
 interface AuthContextType {
   token: string | null;

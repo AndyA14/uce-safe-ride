@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login as loginApi } from '../libs/api-client/auth.api';
-import { useAuth } from '../libs/auth-lib/useAuth';
+import { loginApi } from '../features/auth/api';
+import { useAuth } from '../features/auth/useAuth';
+import { AuthLayout } from '../ui/AuthLayout';
+import { Input } from '../ui/Input';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -15,38 +17,52 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-
-
     try {
       const response = await loginApi({ email, password });
-      login(response); 
+      login(response);
       navigate('/');
-    } catch {
-      setError('Credenciales incorrectas');
+    } catch (err: any) {
+      setError(err.message || 'Credenciales incorrectas');
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="email"
-        placeholder="Correo institucional"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
+    <AuthLayout 
+      title="Bienvenido de nuevo" 
+      subtitle="Ingresa a UCE Safe Ride con tu cuenta institucional"
+    >
+      <form onSubmit={handleSubmit} className="auth-form">
+        <Input
+          label="Correo Institucional"
+          type="email"
+          placeholder="ejemplo@uce.edu.ec"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        
+        <Input
+          label="Contraseña"
+          type="password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
-      <input
-        type="password"
-        placeholder="Contraseña"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
+        {error && <p style={{ color: 'red', fontSize: '0.9rem' }}>{error}</p>}
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+        <button type="submit" className="auth-button">
+          Iniciar Sesión
+        </button>
+      </form>
 
-      <button type="submit">Iniciar sesión</button>
-    </form>
+      <div className="auth-footer">
+        ¿No tienes cuenta?{' '}
+        <button className="auth-link" onClick={() => navigate('/register')}>
+          Regístrate aquí
+        </button>
+      </div>
+    </AuthLayout>
   );
 }

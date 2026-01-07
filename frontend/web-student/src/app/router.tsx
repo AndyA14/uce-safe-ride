@@ -1,24 +1,22 @@
 import { Routes, Route } from 'react-router-dom';
-import LoginPage from '../pages/LoginPage.tsx';
-import { ProtectedRoute } from '../libs/auth-lib/ProtectedRoute';
-import RegisterPage from '../pages/RegisterPage.tsx';
+import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
+import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 
 export const AppRouter = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-    <Route path="/register" element={<RegisterPage />} />
-
+      <Route path="/register" element={<RegisterPage />} />
 
       <Route
         path="/"
         element={
           <ProtectedRoute>
-            <h1>Dashboard Student</h1>
+            <h1>Dashboard Student (¡Bienvenido!)</h1>
           </ProtectedRoute>
         }
       />
     </Routes>
-    
   );
 };

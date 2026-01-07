@@ -1,8 +1,8 @@
-import { Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from './useAuth';
 
-export const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
@@ -10,4 +10,4 @@ export const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   }
 
   return <>{children}</>;
-};
+}
