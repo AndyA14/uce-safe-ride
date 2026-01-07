@@ -1,22 +1,51 @@
-from fastapi import APIRouter, Depends
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.tracking import LocationIn, LocationOut
-from app.db.models import VehicleLocation
 from app.db.session import get_db
-from app.core.security import require_role
+from app.db.models import TrackingPoint
+from app.schemas.tracking import TrackingCreate, TrackingResponse
 
-router = APIRouter(prefix="/tracking", tags=["Tracking"])
+router = APIRouter(prefix="/tracking", tags=["tracking"])
 
 @router.post(
-    "",
-    response_model=LocationOut,
-    status_code=201,
-    dependencies=[Depends(require_role("DRIVER"))],
+    "/points",
+    response_model=TrackingResponse,
+    status_code=status.HTTP_201_CREATED
 )
-def push_location(data: LocationIn, db: Session = Depends(get_db)):
-    location = VehicleLocation(**data.model_dump())
-    db.add(location)
+def create_tracking_point(
+    payload: TrackingCreate,
+    db: Session = Depends(get_db)
+):
+    tracking = TrackingPoint(**payload.dict())
+    db.add(tracking)
     db.commit()
-    db.refresh(location)
-    return location
+    db.refresh(tracking)
+    return tracking
+
+
+@router.get(
+    "/vehicles/{vehicle_id}/latest",
+    response_model=TrackingResponse
+)
+def get_latest_vehicle_position(
+    vehicle_id: uuid.UUID,
+    db: Session = Depends(get_db)
+):
+    tracking = (
+        db.query(TrackingPoint)
+        .filter(TrackingPoint.vehicle_id == vehicle_id)
+        .order_by(TrackingPoint.recorded_at.desc())
+        .first()
+    )
+
+    if not tracking:
+        raise HTTPException(
+            status_code=404,
+            detail="No tracking data found for this vehicle"
+        )
+
+    return tracking
+
+
+
