@@ -1,68 +1,74 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginApi } from '../features/auth/api';
-import { useAuth } from '../features/auth/useAuth';
-import { AuthLayout } from '../ui/AuthLayout';
-import { Input } from '../ui/Input';
+import { loginApi } from '@features/auth/api';
+import { useAuth } from '@features/auth/useAuth';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     try {
+      setLoading(true);
       const response = await loginApi({ email, password });
-      login(response);
+      login(response.access_token);
       navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Credenciales incorrectas');
+    } catch {
+      setError('Credenciales incorrectas');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <AuthLayout 
-      title="Bienvenido de nuevo" 
-      subtitle="Ingresa a UCE Safe Ride con tu cuenta institucional"
-    >
-      <form onSubmit={handleSubmit} className="auth-form">
-        <Input
-          label="Correo Institucional"
-          type="email"
-          placeholder="ejemplo@uce.edu.ec"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        
-        <Input
-          label="Contraseña"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1>UCE Safe Ride</h1>
+        <p>Inicia sesión para continuar</p>
 
-        {error && <p style={{ color: 'red', fontSize: '0.9rem' }}>{error}</p>}
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="Correo institucional"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <button type="submit" className="auth-button">
-          Iniciar Sesión
-        </button>
-      </form>
+          <input
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-      <div className="auth-footer">
-        ¿No tienes cuenta?{' '}
-        <button className="auth-link" onClick={() => navigate('/register')}>
-          Regístrate aquí
-        </button>
+          {error && <p className="error">{error}</p>}
+
+          <button type="submit" disabled={loading}>
+            {loading ? 'Ingresando...' : 'Iniciar sesión'}
+          </button>
+        </form>
+
+        <p className="auth-footer">
+          ¿No tienes cuenta?{' '}
+          <button
+            type="button"
+            className="link"
+            onClick={() => navigate('/register')}
+          >
+            Regístrate aquí
+          </button>
+        </p>
       </div>
-    </AuthLayout>
+    </div>
   );
 }

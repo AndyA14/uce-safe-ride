@@ -1,31 +1,39 @@
-import type { LoginRequest, RegisterRequest, AuthResponse } from './types';
+import { http } from '@shared/http';
 
-const API_URL = 'http://localhost:8001/api/v1/auth'; 
+/* =====================
+   TYPES
+===================== */
 
-export async function loginApi(data: LoginRequest): Promise<AuthResponse> {
-  const res = await fetch(`${API_URL}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Login failed');
-  }
-
-  return res.json();
+interface LoginRequest {
+  email: string;
+  password: string;
 }
 
-export async function registerApi(data: RegisterRequest): Promise<void> {
-  const res = await fetch(`${API_URL}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+interface RegisterRequest {
+  email: string;
+  password: string;
+  full_name?: string;
+}
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Register failed');
-  }
+interface AuthResponse {
+  access_token: string;
+  token_type: string;
+}
+
+/* =====================
+   API CALLS
+===================== */
+
+export async function loginApi(
+  data: LoginRequest
+): Promise<AuthResponse> {
+  const res = await http.post('/auth/login', data);
+  return res.data;
+}
+
+export async function registerApi(
+  data: RegisterRequest
+): Promise<AuthResponse> {
+  const res = await http.post('/auth/register', data);
+  return res.data;
 }

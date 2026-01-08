@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerApi } from '../features/auth/api';
+import { registerApi } from '@features/auth/api';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -22,64 +22,65 @@ export default function RegisterPage() {
 
     try {
       setLoading(true);
-
-      await registerApi({
-        email,
-        password,
-        role: 'STUDENT',
-      });
-
-      alert('Registro exitoso. Ahora puedes iniciar sesión.');
+      await registerApi({ email, password });
+      alert('Registro exitoso. Inicia sesión.');
       navigate('/login');
-    } catch (err) {
-      setError((err as Error).message);
+    } catch {
+      setError('Error al registrar usuario');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: 'auto', marginTop: 80 }}>
-      <h2>Registro de Estudiante</h2>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1>Registro</h1>
+        <p>Crea tu cuenta institucional</p>
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Correo institucional"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="Correo institucional"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <input
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <input
-          type="password"
-          placeholder="Confirmar contraseña"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-        />
+          <input
+            type="password"
+            placeholder="Confirmar contraseña"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
 
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+          {error && <p className="error">{error}</p>}
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Registrando...' : 'Registrarse'}
-        </button>
-      </form>
+          <button type="submit" disabled={loading}>
+            {loading ? 'Registrando...' : 'Registrarse'}
+          </button>
+        </form>
 
-      <p style={{ marginTop: 16 }}>
-        ¿Ya tienes cuenta?{' '}
-        <button onClick={() => navigate('/login')}>
-          Inicia sesión
-        </button>
-      </p>
+        <p className="auth-footer">
+          ¿Ya tienes cuenta?{' '}
+          <button
+            type="button"
+            className="link"
+            onClick={() => navigate('/login')}
+          >
+            Volver a login
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

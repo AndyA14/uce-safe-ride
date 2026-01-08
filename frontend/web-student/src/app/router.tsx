@@ -1,22 +1,37 @@
-import { Routes, Route } from 'react-router-dom';
-import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
+import { Routes, Route, Navigate } from 'react-router-dom';
+
 import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 
-export const AppRouter = () => {
+import AuthLayout from '../features/vehicle/layouts/AuthLayout';
+import StudentLayout from '../features/vehicle/layouts/StudentLayout';
+
+import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
+import DashboardPage from '../pages/student/DashboardPage';
+import MyVehiclePage from '../pages/student/MyVehiclePage';
+
+export function AppRouter() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<AuthLayout />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Route>
 
       <Route
-        path="/"
         element={
           <ProtectedRoute>
-            <h1>Dashboard Student (¡Bienvenido!)</h1>
+            <StudentLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/my-vehicle" element={<MyVehiclePage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
+
     </Routes>
   );
-};
+}
