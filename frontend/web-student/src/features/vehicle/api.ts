@@ -1,7 +1,6 @@
-import { http } from '../../shared/http';
-import type { Vehicle } from './types';
+import { vehicleHttp } from '@/shared/http';
 
-export async function getMyVehicle(): Promise<Vehicle> {
-  const res = await http.get('/api/v1/vehicles/me');
+export const getMyVehicles = async () => {
+  const res = await vehicleHttp.get('/vehicles');
   return res.data;
-}
+};

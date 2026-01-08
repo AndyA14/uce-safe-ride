@@ -1,11 +1,10 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, Integer, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, DateTime, Integer, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-
 
 class StudentProfile(Base):
     __tablename__ = "student_profiles"

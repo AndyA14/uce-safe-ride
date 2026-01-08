@@ -16,7 +16,6 @@ from app.core.security import require_role
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 
-
 @router.post(
     "",
     response_model=VehicleOut,
@@ -33,6 +32,8 @@ def create_vehicle(payload: VehicleCreateIn, db: Session = Depends(get_db)):
         vehicle_type=payload.vehicle_type,
         capacity=payload.capacity,
         status=payload.status,
+        student_user_id=payload.student_user_id, 
+        is_active=True
     )
     db.add(v)
     db.commit()
@@ -48,6 +49,25 @@ def create_vehicle(payload: VehicleCreateIn, db: Session = Depends(get_db)):
 def list_vehicles(db: Session = Depends(get_db)):
     return db.query(Vehicle).order_by(Vehicle.created_at.desc()).all()
 
+
+@router.get(
+    "/student/{student_id}",
+    response_model=list[VehicleOut],
+    dependencies=[Depends(require_role(["ADMIN", "STUDENT"]))],
+)
+def list_vehicles_by_student(student_id: str, db: Session = Depends(get_db)):
+    """
+    Devuelve los vehículos activos asociados a un estudiante específico.
+    """
+    vehicles = (
+        db.query(Vehicle)
+        .filter(
+            Vehicle.student_user_id == student_id,
+            Vehicle.is_active == True
+        )
+        .all()
+    )
+    return vehicles
 
 @router.get(
     "/{vehicle_id}",
@@ -117,6 +137,7 @@ def delete_vehicle(vehicle_id: UUID, db: Session = Depends(get_db)):
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
-    db.delete(v)
+    v.is_active = False 
+    
     db.commit()
     return None

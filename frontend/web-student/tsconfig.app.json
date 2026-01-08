@@ -1,35 +1,32 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ESNext",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": false,
     "skipLibCheck": true,
 
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
 
-    /* 🟢 ESTO ARREGLA EL ERROR DE JSX */
     "jsx": "react-jsx",
 
-    /* Linting */
-    "strict": false,  /* Lo ponemos en false por ahora para que sea más permisivo */
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true,
-    
-    /* 🟢 ESTO ARREGLA LOS ALIAS (@) */
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["./src/*"]
-    },
-
-    /* 🟢 ESTO ARREGLA EL ERROR DE 'path' e importaciones */
-    "esModuleInterop": true
+      "@/*": ["*"],
+      "@features/*": ["features/*"],
+      "@pages/*": ["pages/*"],
+      "@shared/*": ["shared/*"],
+      "@styles/*": ["styles/*"]
+    }
   },
   "include": ["src"]
 }

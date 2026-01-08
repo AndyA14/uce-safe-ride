@@ -1,4 +1,4 @@
-import { http } from '@shared/http';
+import { authHttp } from '@shared/http';
 
 /* =====================
    TYPES
@@ -27,13 +27,13 @@ interface AuthResponse {
 export async function loginApi(
   data: LoginRequest
 ): Promise<AuthResponse> {
-  const res = await http.post('/auth/login', data);
+  const res = await authHttp.post('/auth/login', data);
   return res.data;
 }
 
 export async function registerApi(
   data: RegisterRequest
 ): Promise<AuthResponse> {
-  const res = await http.post('/auth/register', data);
+  const res = await authHttp.post('/auth/register', data);
   return res.data;
 }

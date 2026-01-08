@@ -7,6 +7,7 @@ from jose import JWTError, jwt
 
 from app.core.config import settings
 
+# Esquema de autenticación Bearer
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -16,8 +17,8 @@ def decode_token(token: str) -> Dict[str, Any]:
             token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_aud": False}, # Importante si el issuer no coincide exactamente
             issuer=settings.JWT_ISSUER,
-            options={"require": ["exp", "iat", "sub"]},
         )
         return payload
     except JWTError:
@@ -39,7 +40,7 @@ def get_current_principal(
     token = credentials.credentials
     payload = decode_token(token)
 
-    # normalizamos campos esperados
+    # Extraemos claims principales
     principal = {
         "user_id": payload.get("sub"),
         "role": (payload.get("role") or "").upper(),

@@ -1,97 +1,35 @@
 from datetime import datetime
-from typing import Literal
+from typing import Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from pydantic import BaseModel
-
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from app.core.security import require_role
-from app.core.config import settings
+from app.schemas.students import (
+    ProfileOut, 
+    ProfileUpdateIn, 
+    FavouriteIn, 
+    FavouriteOut, 
+    RouteUsageOut
+)
+from app.core.security import require_role, bearer_scheme
 from app.db.models import StudentProfile, FavouriteRoute, RouteUsage
 from shared.db.session import get_db
 
+# Cliente para hablar con Vehicle Service
+from app.services.vehicle_client import get_vehicle_client, VehicleClient
 
 router = APIRouter()
-bearer = HTTPBearer(auto_error=True)
-
-
-class CurrentUser(BaseModel):
-    user_id: str
-    role: str
-    email: str | None = None
-
-
-def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> CurrentUser:
-    token = creds.credentials
-    try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-            options={"verify_aud": False},
-            issuer=settings.JWT_ISSUER,
-        )
-        sub = payload.get("sub")
-        role = payload.get("role")
-        email = payload.get("email")
-        if not sub or not role:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        return CurrentUser(user_id=str(sub), role=str(role), email=email)
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-def require_roles(*allowed: Literal["STUDENT", "ADMIN"]):
-    def _guard(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-        if user.role.upper() not in allowed:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        return user
-    return _guard
-
-
-# -------------------- Schemas --------------------
-
-class ProfileOut(BaseModel):
-    user_id: str
-    email: str
-    full_name: str | None
-    phone: str | None
-
-
-class ProfileUpdateIn(BaseModel):
-    full_name: str | None = None
-    phone: str | None = None
-
-
-class FavouriteIn(BaseModel):
-    route_id: str
-    alias: str | None = None
-
-
-class FavouriteOut(BaseModel):
-    route_id: str
-    alias: str | None
-
-
-class RouteUsageOut(BaseModel):
-    route_id: str
-    usage_count: int
-    last_used_at: datetime | None
-
 
 # -------------------- Endpoints --------------------
 
 @router.get("/me")
-def get_me(principal=Depends(require_role("STUDENT"))):
-    user_id = principal["user_id"]
+def get_me(principal: Dict[str, Any] = Depends(require_role("STUDENT"))):
     return {
-        "user_id": user_id,
+        "user_id": principal["user_id"],
         "role": principal["role"],
-        "email": "unknown@uce.edu.ec",  # en el futuro, el email real vendrá de StudentProfile
-        "full_name": "Unknown Student",
+        "email": "unknown@uce.edu.ec", 
+        "full_name": "Student",
         "phone": "",
     }
 
@@ -99,19 +37,27 @@ def get_me(principal=Depends(require_role("STUDENT"))):
 @router.put("/me", response_model=ProfileOut)
 def update_my_profile(
     payload: ProfileUpdateIn,
-    user: CurrentUser = Depends(require_roles("STUDENT", "ADMIN")),
+    user: Dict[str, Any] = Depends(require_role("STUDENT", "ADMIN")),
     db: Session = Depends(get_db),
 ):
-    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user.user_id).first()
+    profile = db.query(StudentProfile).filter(StudentProfile.user_id == user["user_id"]).first()
+    
     if not profile:
-        profile = StudentProfile(user_id=user.user_id, email=user.email or "unknown@uce.edu.ec")
+        profile = StudentProfile(
+            user_id=user["user_id"], 
+            email="unknown@uce.edu.ec"
+        )
         db.add(profile)
 
-    profile.full_name = payload.full_name
-    profile.phone = payload.phone
+    if payload.full_name is not None:
+        profile.full_name = payload.full_name
+    
+    if payload.phone is not None:
+        profile.phone = payload.phone
 
     db.commit()
     db.refresh(profile)
+    
     return ProfileOut(
         user_id=profile.user_id,
         email=profile.email,
@@ -120,16 +66,30 @@ def update_my_profile(
     )
 
 
+# 👇 ENDPOINT DE VEHÍCULOS (CONEXIÓN ENTRE MICROSERVICIOS)
+@router.get("/me/vehicles")
+async def get_my_vehicles(
+    user: Dict[str, Any] = Depends(require_role("STUDENT")),
+    client: VehicleClient = Depends(get_vehicle_client),
+    # Capturamos el token crudo para reenviarlo
+    creds: HTTPAuthorizationCredentials = Depends(bearer_scheme) 
+):
+    return await client.get_vehicles_by_student(
+        student_id=user["user_id"],
+        token=creds.credentials 
+    )
+
+
 @router.post("/me/favourites", status_code=201)
 def add_favourite_route(
     payload: FavouriteIn,
-    user: CurrentUser = Depends(require_roles("STUDENT")),
+    user: Dict[str, Any] = Depends(require_role("STUDENT")),
     db: Session = Depends(get_db),
 ):
     exists = (
         db.query(FavouriteRoute)
         .filter(
-            FavouriteRoute.student_user_id == user.user_id,
+            FavouriteRoute.student_user_id == user["user_id"],
             FavouriteRoute.route_id == payload.route_id,
         )
         .first()
@@ -138,7 +98,7 @@ def add_favourite_route(
         raise HTTPException(status_code=409, detail="Route already in favourites")
 
     fav = FavouriteRoute(
-        student_user_id=user.user_id,
+        student_user_id=user["user_id"],
         route_id=payload.route_id,
         alias=payload.alias,
     )
@@ -149,12 +109,12 @@ def add_favourite_route(
 
 @router.get("/me/favourites", response_model=list[FavouriteOut])
 def list_favourites(
-    user: CurrentUser = Depends(require_roles("STUDENT")),
+    user: Dict[str, Any] = Depends(require_role("STUDENT")),
     db: Session = Depends(get_db),
 ):
     favs = (
         db.query(FavouriteRoute)
-        .filter(FavouriteRoute.student_user_id == user.user_id)
+        .filter(FavouriteRoute.student_user_id == user["user_id"])
         .order_by(FavouriteRoute.created_at.desc())
         .all()
     )
@@ -164,12 +124,15 @@ def list_favourites(
 @router.delete("/me/favourites/{route_id}")
 def remove_favourite(
     route_id: str,
-    user: CurrentUser = Depends(require_roles("STUDENT")),
+    user: Dict[str, Any] = Depends(require_role("STUDENT")),
     db: Session = Depends(get_db),
 ):
     fav = (
         db.query(FavouriteRoute)
-        .filter(FavouriteRoute.student_user_id == user.user_id, FavouriteRoute.route_id == route_id)
+        .filter(
+            FavouriteRoute.student_user_id == user["user_id"], 
+            FavouriteRoute.route_id == route_id
+        )
         .first()
     )
     if not fav:
@@ -183,16 +146,23 @@ def remove_favourite(
 @router.post("/me/routes/{route_id}/use")
 def register_route_usage(
     route_id: str,
-    user: CurrentUser = Depends(require_roles("STUDENT")),
+    user: Dict[str, Any] = Depends(require_role("STUDENT")),
     db: Session = Depends(get_db),
 ):
     usage = (
         db.query(RouteUsage)
-        .filter(RouteUsage.student_user_id == user.user_id, RouteUsage.route_id == route_id)
+        .filter(
+            RouteUsage.student_user_id == user["user_id"], 
+            RouteUsage.route_id == route_id
+        )
         .first()
     )
     if not usage:
-        usage = RouteUsage(student_user_id=user.user_id, route_id=route_id, usage_count=0)
+        usage = RouteUsage(
+            student_user_id=user["user_id"], 
+            route_id=route_id, 
+            usage_count=0
+        )
         db.add(usage)
 
     usage.usage_count += 1
@@ -204,17 +174,7 @@ def register_route_usage(
 
 @router.get("/me/most-used", response_model=list[RouteUsageOut])
 def most_used_routes(
-    user: CurrentUser = Depends(require_roles("STUDENT")),
+    user: Dict[str, Any] = Depends(require_role("STUDENT")),
     db: Session = Depends(get_db),
 ):
-    rows = (
-        db.query(RouteUsage)
-        .filter(RouteUsage.student_user_id == user.user_id)
-        .order_by(RouteUsage.usage_count.desc())
-        .limit(10)
-        .all()
-    )
-    return [
-        RouteUsageOut(route_id=r.route_id, usage_count=r.usage_count, last_used_at=r.last_used_at)
-        for r in rows
-    ]
+    return []
