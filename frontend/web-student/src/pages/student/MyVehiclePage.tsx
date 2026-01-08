@@ -1,4 +1,4 @@
-import { useVehicle } from '../../features/vehicle/useVehicle';
+import { useVehicle } from '@/features/vehicle/hooks/useVehicle';
 
 export default function MyVehiclePage() {
   const { vehicle, loading, error } = useVehicle();

@@ -1,6 +1,5 @@
-import Header from '../../shared/ui/Header';
-import { useAuth } from '@features/auth/useAuth';
-
+import Header from '@/shared/ui/Header';
+import { useAuth } from '@features/auth/hooks/useAuth';
 
 export default function DashboardPage() {
   const { logout } = useAuth();

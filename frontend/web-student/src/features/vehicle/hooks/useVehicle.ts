@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getMyVehicle } from './api';
-import type { Vehicle } from './types';
+import { getMyVehicles } from '../api';
+import type { Vehicle } from '../types';
 
 export function useVehicle() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -8,8 +8,13 @@ export function useVehicle() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getMyVehicle()
-      .then(setVehicle)
+    getMyVehicles()
+      .then((data) => {
+        // Si la API devuelve un array, tomamos el primer vehículo
+        // Si devuelve un objeto, lo usamos directamente
+        const vehicleData = Array.isArray(data) ? data[0] || null : data;
+        setVehicle(vehicleData);
+      })
       .catch(() => setError('No se pudo cargar el vehículo'))
       .finally(() => setLoading(false));
   }, []);

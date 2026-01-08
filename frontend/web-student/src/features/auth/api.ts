@@ -1,24 +1,5 @@
-import { authHttp } from '@shared/http';
-
-/* =====================
-   TYPES
-===================== */
-
-interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-interface RegisterRequest {
-  email: string;
-  password: string;
-  full_name?: string;
-}
-
-interface AuthResponse {
-  access_token: string;
-  token_type: string;
-}
+import { authHttp } from '@/core/http';
+import type { LoginRequest, RegisterRequest, AuthResponse } from './types';
 
 /* =====================
    API CALLS

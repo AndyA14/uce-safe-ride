@@ -1,4 +1,4 @@
-import { useAuth } from '../../features/auth/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export default function Header() {
   const { logout } = useAuth();
