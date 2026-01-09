@@ -1,0 +1,45 @@
+.student-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.student-header-info {
+  flex: 1;
+}
+
+.student-name {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #003366;
+}
+
+.student-email {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.student-logout-btn {
+  padding: 0.625rem 1.25rem;
+  background: #003366;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.student-logout-btn:hover {
+  background: #004080;
+}
+
+.student-logout-btn:active {
+  transform: scale(0.98);
+}

@@ -1,6 +1,11 @@
-import { vehicleHttp } from '@/core/http';
+import { studentHttp } from '@/core/http';
+import type { Vehicle } from './types';
 
-export const getMyVehicles = async () => {
-  const res = await vehicleHttp.get('/vehicles');
+/**
+ * Obtiene los vehículos asignados al estudiante actual
+ * Endpoint: GET /students/me/vehicles
+ */
+export const getMyVehicles = async (): Promise<Vehicle[]> => {
+  const res = await studentHttp.get<Vehicle[]>('/students/me/vehicles');
   return res.data;
 };

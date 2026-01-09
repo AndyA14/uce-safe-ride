@@ -1,24 +1,72 @@
-import { useVehicle } from '@/features/vehicle/hooks/useVehicle';
+import { useVehicles } from '@/features/vehicle/hooks/useVehicles';
+import VehicleCard from '@/shared/ui/VehicleCard';
+import '@/styles/pages/MyVehiclePage.css';
 
 export default function MyVehiclePage() {
-  const { vehicle, loading, error } = useVehicle();
+  const { vehicles, loading, error } = useVehicles();
 
-  if (loading) return <p>Cargando transporte...</p>;
-  if (error) return <p>{error}</p>;
-  if (!vehicle) return <p>No tienes transporte asignado</p>;
+  const handleViewLocation = (vehicleId: string) => {
+    // TODO: Implementar navegación al mapa con la ubicación del vehículo
+    console.log('Ver ubicación del vehículo:', vehicleId);
+  };
+
+  if (loading) {
+    return (
+      <div className="my-vehicle-page">
+        <div className="page-header">
+          <h1>Mi Transporte</h1>
+        </div>
+        <div className="loading-state">
+          <p>Cargando transporte...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="my-vehicle-page">
+        <div className="page-header">
+          <h1>Mi Transporte</h1>
+        </div>
+        <div className="error-state">
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (vehicles.length === 0) {
+    return (
+      <div className="my-vehicle-page">
+        <div className="page-header">
+          <h1>Mi Transporte</h1>
+        </div>
+        <div className="empty-state">
+          <p>No tienes transporte asignado</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h2>Mi Transporte</h2>
+    <div className="my-vehicle-page">
+      <div className="page-header">
+        <h1>Mi Transporte</h1>
+        <p className="page-subtitle">
+          {vehicles.length} {vehicles.length === 1 ? 'vehículo asignado' : 'vehículos asignados'}
+        </p>
+      </div>
 
-      <ul>
-        <li><strong>Placa:</strong> {vehicle.plate}</li>
-        <li><strong>Estado:</strong> {vehicle.status}</li>
-      </ul>
-
-      <button style={{ marginTop: 16 }}>
-        Ver ubicación
-      </button>
+      <div className="vehicles-grid">
+        {vehicles.map((vehicle) => (
+          <VehicleCard
+            key={vehicle.id}
+            vehicle={vehicle}
+            onViewLocation={() => handleViewLocation(vehicle.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
