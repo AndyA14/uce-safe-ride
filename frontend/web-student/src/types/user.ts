@@ -1,9 +1,3 @@
-/**
- * User Types
- * Core type definitions for the UCE Safe Ride application
- * Roles: 'student' and 'driver' only
- */
-
 export type UserRole = 'student' | 'driver';
 
 export interface User {
@@ -14,11 +8,6 @@ export interface User {
   avatar?: string;
 }
 
-/**
- * Student Profile Interface
- * Used for profile display and update operations
- * TODO: Connect to Backend API - GET/PUT /api/me
- */
 export interface StudentProfile {
   full_name: string;
   email: string;
