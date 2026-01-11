@@ -5,12 +5,13 @@ import { getRoutes } from '@/services/routeService';
 import { getCustomRoutes, createCustomRoute, deleteCustomRoute } from '@/services/studentService';
 // Tipos
 import { Route, CustomRoute } from '@/types/route';
-// UI Components
-import { MapPin, Navigation, Bus, Plus, Trash2, Home } from 'lucide-react';
+// Componentes UI
+import { MapPin, Navigation, Bus, Plus, Trash2, Home, Crosshair } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Usaremos Tabs para organizar
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import LocationPicker from '@/components/common/LocationPicker'; 
 
 const RoutesPage = () => {
   const navigate = useNavigate();
@@ -29,15 +31,14 @@ const RoutesPage = () => {
   const [publicRoutes, setPublicRoutes] = useState<Route[]>([]);
   const [customRoutes, setCustomRoutes] = useState<CustomRoute[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // --- CORRECCIÓN AQUÍ: Quitamos el espacio en el nombre de la variable ---
   const [isCreating, setIsCreating] = useState(false); 
 
   // Formulario Nueva Ruta
   const [newRouteOpen, setNewRouteOpen] = useState(false);
+  // Coordenadas iniciales (Quito, UCE aprox)
   const [formData, setFormData] = useState({
     name: '',
-    originLat: -0.2105, // Default UCE
+    originLat: -0.2105, 
     originLng: -78.4917,
     destLat: -0.1800,
     destLng: -78.4800
@@ -64,13 +65,9 @@ const RoutesPage = () => {
     }
   };
 
-  // Manejar creación
   const handleCreate = async () => {
     if (!formData.name) return;
-    
-    // Usamos la variable corregida
     setIsCreating(true); 
-    
     try {
       await createCustomRoute({
         name: formData.name,
@@ -80,7 +77,15 @@ const RoutesPage = () => {
       
       toast({ title: "¡Ruta creada!", description: "Ahora los conductores podrán ver tu solicitud." });
       setNewRouteOpen(false);
-      loadAllRoutes(); // Recargar lista
+      loadAllRoutes();
+      // Reiniciar form
+      setFormData({
+        name: '',
+        originLat: -0.2105, 
+        originLng: -78.4917,
+        destLat: -0.1800,
+        destLng: -78.4800
+      });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo crear la ruta.", variant: "destructive" });
     } finally {
@@ -88,13 +93,11 @@ const RoutesPage = () => {
     }
   };
 
-  // Manejar eliminación
   const handleDelete = async (id: string) => {
     if (!confirm("¿Seguro que quieres eliminar esta ruta?")) return;
     try {
       await deleteCustomRoute(id);
       toast({ title: "Eliminada", description: "La ruta ha sido borrada." });
-      // Actualización optimista de la UI
       setCustomRoutes(prev => prev.filter(r => r.id !== id));
     } catch (error) {
       toast({ title: "Error", variant: "destructive" });
@@ -120,7 +123,7 @@ const RoutesPage = () => {
           </p>
         </div>
 
-        {/* MODAL PARA CREAR RUTA */}
+        {/* MODAL PARA CREAR RUTA CON MAPA */}
         <Dialog open={newRouteOpen} onOpenChange={setNewRouteOpen}>
           <DialogTrigger asChild>
             <Button className="bg-[#003da5] hover:bg-[#002a7a] text-white">
@@ -128,11 +131,12 @@ const RoutesPage = () => {
               Nueva Ruta Personal
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl overflow-y-auto max-h-[90vh]">
             <DialogHeader>
               <DialogTitle>Crear Ruta Personalizada</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            
+            <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label>Nombre de la Ruta</Label>
                 <Input 
@@ -141,33 +145,44 @@ const RoutesPage = () => {
                   onChange={e => setFormData({...formData, name: e.target.value})}
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Latitud Origen</Label>
-                  <Input type="number" value={formData.originLat} onChange={e => setFormData({...formData, originLat: Number(e.target.value)})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Longitud Origen</Label>
-                  <Input type="number" value={formData.originLng} onChange={e => setFormData({...formData, originLng: Number(e.target.value)})} />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Latitud Destino</Label>
-                  <Input type="number" value={formData.destLat} onChange={e => setFormData({...formData, destLat: Number(e.target.value)})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Longitud Destino</Label>
-                  <Input type="number" value={formData.destLng} onChange={e => setFormData({...formData, destLng: Number(e.target.value)})} />
-                </div>
-              </div>
-              <p className="text-xs text-gray-400">* En el futuro podrás seleccionar esto en el mapa.</p>
+              {/* PESTAÑAS PARA SELECCIONAR ORIGEN Y DESTINO */}
+              <Tabs defaultValue="origin" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="origin">1. Punto de Origen</TabsTrigger>
+                  <TabsTrigger value="dest">2. Punto de Destino</TabsTrigger>
+                </TabsList>
+                
+                {/* MAPA DE ORIGEN */}
+                <TabsContent value="origin" className="space-y-3 pt-4">
+                  <div className="flex justify-between items-center bg-blue-50 p-3 rounded-md text-sm text-blue-800">
+                    <span className="flex items-center gap-2"><MapPin className="w-4 h-4"/> Selecciona dónde te recogerá el bus</span>
+                    <span className="font-mono text-xs">{formData.originLat.toFixed(4)}, {formData.originLng.toFixed(4)}</span>
+                  </div>
+                  <LocationPicker 
+                    initialLat={formData.originLat}
+                    initialLng={formData.originLng}
+                    onLocationSelect={(lat, lng) => setFormData({...formData, originLat: lat, originLng: lng})}
+                  />
+                </TabsContent>
+
+                {/* MAPA DE DESTINO */}
+                <TabsContent value="dest" className="space-y-3 pt-4">
+                  <div className="flex justify-between items-center bg-green-50 p-3 rounded-md text-sm text-green-800">
+                    <span className="flex items-center gap-2"><Crosshair className="w-4 h-4"/> Selecciona tu destino final</span>
+                    <span className="font-mono text-xs">{formData.destLat.toFixed(4)}, {formData.destLng.toFixed(4)}</span>
+                  </div>
+                  <LocationPicker 
+                    initialLat={formData.destLat}
+                    initialLng={formData.destLng}
+                    onLocationSelect={(lat, lng) => setFormData({...formData, destLat: lat, destLng: lng})}
+                  />
+                </TabsContent>
+              </Tabs>
+
             </div>
             <DialogFooter>
-              {/* CORRECCIÓN AQUÍ: Usamos la variable correcta en el ternario */}
-              <Button onClick={handleCreate} disabled={!formData.name || isCreating}>
+              <Button onClick={handleCreate} disabled={!formData.name || isCreating} className="w-full sm:w-auto">
                 {isCreating ? "Guardando..." : "Guardar Ruta"}
               </Button>
             </DialogFooter>
@@ -188,7 +203,7 @@ const RoutesPage = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {customRoutes.map((route) => (
-              <div key={route.id} className="bg-white dark:bg-[#0f172a] border border-blue-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm relative group">
+              <div key={route.id} className="bg-white dark:bg-[#0f172a] border border-blue-100 dark:border-slate-800 p-5 rounded-2xl shadow-sm relative group hover:shadow-md transition-all">
                 <div className="flex justify-between items-start mb-2">
                   <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-[#003da5]">
                     <Navigation className="w-5 h-5" />
@@ -202,10 +217,16 @@ const RoutesPage = () => {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-                <h3 className="font-bold text-gray-900 dark:text-white">{route.name}</h3>
-                <div className="text-xs text-gray-500 mt-2 space-y-1">
-                  <p>Origen: {route.origin.lat.toFixed(4)}, {route.origin.lng.toFixed(4)}</p>
-                  <p>Destino: {route.destination.lat.toFixed(4)}, {route.destination.lng.toFixed(4)}</p>
+                <h3 className="font-bold text-gray-900 dark:text-white truncate" title={route.name}>{route.name}</h3>
+                <div className="text-xs text-gray-500 mt-2 space-y-1 bg-gray-50 dark:bg-slate-800 p-2 rounded-md">
+                  <p className="flex items-center justify-between">
+                    <span>Origen:</span> 
+                    <span className="font-mono">{route.origin.lat.toFixed(3)}, {route.origin.lng.toFixed(3)}</span>
+                  </p>
+                  <p className="flex items-center justify-between">
+                    <span>Destino:</span> 
+                    <span className="font-mono">{route.destination.lat.toFixed(3)}, {route.destination.lng.toFixed(3)}</span>
+                  </p>
                 </div>
                 <Badge className="mt-3 bg-green-100 text-green-700 border-green-200">Activa</Badge>
               </div>
