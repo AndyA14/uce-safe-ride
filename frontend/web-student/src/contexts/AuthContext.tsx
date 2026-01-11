@@ -1,17 +1,12 @@
-/**
- * Authentication Context - REAL
- * Gestiona el estado de la sesión conectado al Backend FastAPI
- */
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types/user';
-import { loginUser, logoutUser, getCurrentSession } from '@/services/authService';
+import { loginUser, logoutUser } from '@/services/authService';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean; // Para saber si estamos verificando sesión al inicio
-  login: (email: string, password: string, role: UserRole) => Promise<void>;
+  isLoading: boolean;
+  login: (email: string, password: string, role: UserRole) => Promise<User>;
   logout: () => void;
 }
 
@@ -21,45 +16,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Al cargar la app, verificamos si ya existe una sesión guardada
   useEffect(() => {
-    const initSession = async () => {
-      try {
-        const savedUser = await getCurrentSession();
-        if (savedUser) {
-          setUser(savedUser);
-        }
-      } catch (error) {
-        console.error("Error recuperando sesión:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
 
-    initSession();
+    if (storedUser && token) {
+      try {
+        setUser(JSON.parse(storedUser) as User);
+      } catch (error) {
+        console.error('Error leyendo sesión local:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+
+    setIsLoading(false);
   }, []);
 
-  // 2. Login Real (Async)
   const login = async (email: string, password: string, role: UserRole) => {
     try {
-      // Llamamos al servicio que conecta con FastAPI
-      const userData = await loginUser(email, password, role);
-      setUser(userData);
+      const { user: userFromApi, access_token } = await loginUser(email, password, role);
+
+      setUser(userFromApi);
+      localStorage.setItem('user', JSON.stringify(userFromApi));
+      localStorage.setItem('token', access_token);
+
+      return userFromApi;
     } catch (error) {
-      // Propagamos el error para que el componente Login pueda mostrar el mensaje rojo
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
       throw error;
     }
   };
 
-  // 3. Logout Real
-  const logout = async () => {
-    try {
-      await logoutUser();
-      setUser(null);
-      // Opcional: Redirigir al login o limpiar estados
-    } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-    }
+  const logout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setUser(null);
+    logoutUser(); // opcional: limpiar sesión del backend
   };
 
   return (
@@ -69,17 +63,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated: !!user,
         isLoading,
         login,
-        logout
+        logout,
       }}
     >
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

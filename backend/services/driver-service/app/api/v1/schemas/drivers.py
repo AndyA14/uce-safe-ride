@@ -8,7 +8,7 @@ DriverStatus = Literal["AVAILABLE", "ON_ROUTE", "OFFLINE"]
 class DriverCreateIn(BaseModel):
     name: str = Field(min_length=3, max_length=100)
     license_number: str = Field(min_length=5, max_length=50)
-    phone: str = Field(min_length=7, max_length=20)
+    phone: Optional[str] = Field(default=None, min_length=7, max_length=20)
 
 
 class DriverUpdateIn(BaseModel):
@@ -22,9 +22,10 @@ class DriverStatusUpdateIn(BaseModel):
 
 class DriverOut(BaseModel):
     id: UUID
+    user_id: UUID
     name: str
     license_number: str
-    phone: str
+    phone: Optional[str]
     status: DriverStatus
 
     class Config:

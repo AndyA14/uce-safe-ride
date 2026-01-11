@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { X, Eye, EyeOff, User, Truck, AlertCircle } from 'lucide-react';
+import { X, Eye, EyeOff, GraduationCap, Car, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/user';
 import uceLogo from '@/assets/uce-logo.png';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -14,20 +15,20 @@ interface LoginModalProps {
 }
 
 const roles: { id: UserRole; label: string; icon: React.ElementType; description: string }[] = [
-  { id: 'student', label: 'Estudiante', icon: User, description: 'Accede a rutas y horarios' },
-  { id: 'driver', label: 'Conductor', icon: Truck, description: 'Gestiona tu recorrido' },
+  { id: 'STUDENT', label: 'Estudiante', icon: GraduationCap, description: 'Accede a rutas y horarios' },
+  { id: 'DRIVER', label: 'Conductor', icon: Car, description: 'Gestiona tu recorrido' },
 ];
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegister }) => {
-  const [selectedRole, setSelectedRole] = useState<UserRole>('student');
-  const [showPassword, setShowPassword] = useState(false);
-  
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const [selectedRole, setSelectedRole] = useState<UserRole>('STUDENT');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null); // Estado para errores
-  const [isLoading, setIsLoading] = useState(false); // Estado de carga
-  
-  const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -37,12 +38,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
     setIsLoading(true);
 
     try {
-      // Conexión real al endpoint /api/v1/auth/login
-      await login(email, password, selectedRole);
-      onClose(); // Solo cerramos si el login fue exitoso
-    } catch (err) {
-      console.error("Login fallido", err);
-      setError("Credenciales incorrectas o error de conexión.");
+      const user = await login(email, password, selectedRole);
+
+      if (user.role !== selectedRole) {
+        throw new Error(
+          `Has seleccionado "${selectedRole}" pero tu perfil es de "${user.role}". Por favor selecciona la pestaña correcta.`
+        );
+      }
+
+      if (user.role === 'STUDENT') navigate('/student/dashboard');
+      else if (user.role === 'DRIVER') navigate('/driver/profile');
+      else navigate('/');
+
+      onClose();
+    } catch (err: any) {
+      console.error('Error en login:', err);
+      setError(err.message || 'Credenciales incorrectas o error de conexión.');
     } finally {
       setIsLoading(false);
     }
@@ -50,37 +61,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-foreground/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal: Cambiado max-w-md a max-w-sm para ser más pequeño */}
+      <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={onClose} />
+
       <div className="relative w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border animate-scale-in overflow-hidden">
-        
-        {/* Header Compacto */}
-        <div className="gradient-primary p-5 text-center">
+        <div className="gradient-primary p-5 text-center relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           >
             <X className="w-4 h-4 text-white" />
           </button>
-          
-          <img 
-            src={uceLogo} 
-            alt="UCE Logo" 
-            className="w-16 h-16 mx-auto mb-2 bg-white rounded-full p-1"
-          />
+          <img src={uceLogo} alt="UCE Logo" className="w-16 h-16 mx-auto mb-2 bg-white rounded-full p-1" />
           <h2 className="text-xl font-bold text-white">UCE Safe Ride</h2>
           <p className="text-white/80 text-xs mt-1">Sistema de Transporte Universitario</p>
         </div>
-        
-        {/* Form */}
+
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          
-          {/* Mensaje de Error Visual */}
           {error && (
             <div className="p-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded flex items-center gap-2">
               <AlertCircle className="w-3 h-3" />
@@ -88,7 +84,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
             </div>
           )}
 
-          {/* Role Selection Compacto */}
           <div>
             <Label className="text-xs font-medium mb-2 block">Selecciona tu rol</Label>
             <div className="grid grid-cols-2 gap-2">
@@ -103,24 +98,30 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
                       : 'border-border hover:border-muted-foreground/30'
                   }`}
                 >
-                  <role.icon className={`w-6 h-6 mx-auto mb-1 ${
-                    selectedRole === role.id ? 'text-primary' : 'text-muted-foreground'
-                  }`} strokeWidth={1.5} />
-                  <p className={`text-xs font-medium ${
-                    selectedRole === role.id ? 'text-primary' : 'text-muted-foreground'
-                  }`}>{role.label}</p>
+                  <role.icon
+                    className={`w-6 h-6 mx-auto mb-1 ${
+                      selectedRole === role.id ? 'text-primary' : 'text-muted-foreground'
+                    }`}
+                    strokeWidth={1.5}
+                  />
+                  <p
+                    className={`text-xs font-medium ${
+                      selectedRole === role.id ? 'text-primary' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {role.label}
+                  </p>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Email */}
           <div>
             <Label htmlFor="email" className="text-xs font-medium">Correo Institucional</Label>
             <Input
               id="email"
               type="email"
-              autoComplete="email" // Fix Chrome warning
+              autoComplete="email"
               placeholder="usuario@uce.edu.ec"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -129,14 +130,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
             />
           </div>
 
-          {/* Password */}
           <div>
             <Label htmlFor="password" className="text-xs font-medium">Contraseña</Label>
             <div className="relative mt-1">
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password" // Fix Chrome warning
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -153,21 +153,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
             </div>
           </div>
 
-          {/* Submit */}
-          <Button 
-            type="submit" 
-            className="w-full font-semibold h-10 text-sm" 
-            disabled={isLoading}
-          >
-            {isLoading ? "Entrando..." : "Iniciar Sesión"}
+          <Button type="submit" className="w-full font-semibold h-10 text-sm" disabled={isLoading}>
+            {isLoading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Iniciar Sesión"}
           </Button>
 
-          {/* Footer */}
-          <div className="text-center space-y-1.5 pt-1">
-            {selectedRole === 'student' && onSwitchToRegister && (
-              <p className="text-xs text-muted-foreground">
+          <div className="text-center space-y-1.5 pt-1 text-[10px] text-muted-foreground">
+            {selectedRole === 'STUDENT' && onSwitchToRegister && (
+              <p>
                 ¿No tienes cuenta?{' '}
-                <button 
+                <button
                   type="button"
                   onClick={onSwitchToRegister}
                   className="text-primary hover:underline font-medium"
@@ -176,7 +170,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegi
                 </button>
               </p>
             )}
-            <p className="text-[10px] text-muted-foreground">
+            <p>
               ¿Problemas para acceder?{' '}
               <a href="#" className="text-primary hover:underline font-medium">
                 Contacta a soporte

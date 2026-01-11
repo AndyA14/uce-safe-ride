@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { registerUser } from '@/services/authService'; // <--- IMPORTANTE: Importamos el servicio real
+import { registerUser } from '@/services/authService'; 
 import uceLogo from '@/assets/uce-logo.png';
 
 interface RegisterModalProps {
@@ -23,13 +23,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
   const [confirmPassword, setConfirmPassword] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null); // <--- Estado para errores del backend
+  const [error, setError] = useState<string | null>(null);
 
-  const { login } = useAuth(); // Usaremos esto para auto-loguear al usuario tras registrarse
+  const { login } = useAuth();
 
   if (!isOpen) return null;
 
-  // Validation
+  // Validaciones
   const passwordsMatch = password === confirmPassword;
   const passwordTouched = confirmPassword.length > 0;
   const isFormValid = fullName.trim() !== '' && 
@@ -39,31 +39,25 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null); // Limpiar errores previos
+    setError(null);
     
     if (!isFormValid) return;
     
     setIsSubmitting(true);
-    
+
     try {
-      // 1. LLAMADA REAL AL BACKEND (FastAPI)
-      // Enviamos 'student' hardcodeado porque este modal es solo para estudiantes
-      await registerUser(fullName, email, password, 'student');
-      
-      // 2. Si llegamos aquí, el registro fue exitoso.
-      // Intentamos auto-iniciar sesión para mejorar la UX
+      await registerUser(fullName, email, password, 'STUDENT');
       try {
-        await login(email, password, 'student');
-        onClose(); // Cerramos el modal
+        await login(email, password, 'STUDENT');
+        onClose(); 
       } catch (loginErr) {
-        // Si falla el auto-login, al menos cerramos y mandamos al login
         onSwitchToLogin();
       }
 
     } catch (err: any) {
       console.error("Error en registro:", err);
-      // Intentamos mostrar el mensaje que viene del backend (ej: "Email already registered")
-      const backendMessage = err.response?.data?.detail || "Error al registrarse. Verifica tus datos.";
+      const backendMessage = err.response?.data?.detail || 
+                             "Error al registrarse. Verifica tus datos.";
       setError(backendMessage);
     } finally {
       setIsSubmitting(false);
@@ -72,16 +66,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-foreground/60 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* Modal */}
       <div className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border animate-scale-in overflow-hidden max-h-[90vh] overflow-y-auto">
         
-        {/* Header with UCE branding */}
+        {/* Header */}
         <div className="gradient-primary p-6 text-center">
           <button
             onClick={onClose}
@@ -102,7 +94,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           
-          {/* Mensaje de Error del Backend */}
           {error && (
             <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
@@ -201,7 +192,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
               </button>
             </div>
             
-            {/* Password Validation Message */}
             {passwordTouched && (
               <div className={`flex items-center gap-1.5 mt-2 text-sm ${
                 passwordsMatch ? 'text-green-600' : 'text-destructive'
@@ -221,7 +211,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
             )}
           </div>
 
-          {/* Submit */}
           <Button 
             type="submit" 
             className="w-full font-semibold" 
@@ -231,7 +220,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
             {isSubmitting ? 'Registrando...' : 'Crear Cuenta'}
           </Button>
 
-          {/* Footer */}
           <p className="text-center text-sm text-muted-foreground">
             ¿Ya tienes una cuenta?{' '}
             <button 
