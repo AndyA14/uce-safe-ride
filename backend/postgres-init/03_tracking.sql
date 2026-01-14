@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS tracking_points (
+CREATE TABLE IF NOT EXISTS uce_tracking (
     id UUID PRIMARY KEY,
     driver_id UUID NOT NULL,
     vehicle_id UUID NOT NULL,

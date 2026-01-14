@@ -1,1 +1,5 @@
+CREATE DATABASE uce_auth;
 CREATE DATABASE uce_student;
+CREATE DATABASE uce_driver;
+CREATE DATABASE uce_vehicle;
+CREATE DATABASE uce_route;

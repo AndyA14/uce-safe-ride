@@ -19,7 +19,6 @@ from app.db.base import Base
 # ------------------------------------------------------------------
 # STUDENT PROFILE
 # ------------------------------------------------------------------
-
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
 
@@ -29,16 +28,15 @@ class StudentProfile(Base):
         default=uuid.uuid4,
     )
 
-    user_id: Mapped[str] = mapped_column(
-        String,
-        index=True,
+    auth_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         unique=True,
+        index=True,
         nullable=False,
     )
 
     email: Mapped[str] = mapped_column(
         String,
-        index=True,
         nullable=False,
     )
 
@@ -52,16 +50,10 @@ class StudentProfile(Base):
         nullable=True,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-    )
-
 
 # ------------------------------------------------------------------
 # STUDENT CUSTOM ROUTE
 # ------------------------------------------------------------------
-
 class StudentCustomRoute(Base):
     __tablename__ = "student_custom_routes"
 
@@ -111,11 +103,11 @@ class StudentCustomRoute(Base):
 
 
 # ------------------------------------------------------------------
-# FAVOURITE ROUTE
+# FAVOURITE ROUTES
 # ------------------------------------------------------------------
-
 class FavouriteRoute(Base):
     __tablename__ = "favourite_routes"
+
     __table_args__ = (
         UniqueConstraint(
             "student_user_id",
@@ -156,9 +148,9 @@ class FavouriteRoute(Base):
 # ------------------------------------------------------------------
 # ROUTE USAGE
 # ------------------------------------------------------------------
-
 class RouteUsage(Base):
     __tablename__ = "route_usage"
+
     __table_args__ = (
         UniqueConstraint(
             "student_user_id",

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, Eye, EyeOff, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Eye, EyeOff, User, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { registerUser } from '@/services/authService'; 
+import { useNavigate } from 'react-router-dom';
 import uceLogo from '@/assets/uce-logo.png';
 
 interface RegisterModalProps {
@@ -24,8 +25,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
@@ -46,19 +49,50 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
     setIsSubmitting(true);
 
     try {
+      console.log('Registrando usuario...');
+      
+      // 1. Registrar en Auth Service
       await registerUser(fullName, email, password, 'STUDENT');
+      console.log('Usuario registrado exitosamente');
+      
+      setSuccess(true);
+      
+      // 2. Hacer login automático
       try {
-        await login(email, password, 'STUDENT');
-        onClose(); 
-      } catch (loginErr) {
+        console.log('Iniciando sesión automática...');
+        const user = await login(email, password, 'STUDENT');
+        
+        console.log('Login exitoso:', user);
+        onClose();
+        
+        // 3. El backend auto-crea el perfil, así que siempre redirigimos a completar perfil
+        // (El perfil tendrá full_name="Estudiante nuevo")
+        navigate('/student/complete-profile', {
+          state: { 
+            message: '¡Registro exitoso! Completa tu perfil para comenzar.' 
+          }
+        });
+        
+      } catch (loginErr: any) {
+        console.error('Error en login automático:', loginErr);
+        // Si falla el login automático, mostrar pantalla de login
+        setSuccess(false);
         onSwitchToLogin();
       }
 
     } catch (err: any) {
-      console.error("Error en registro:", err);
-      const backendMessage = err.response?.data?.detail || 
-                             "Error al registrarse. Verifica tus datos.";
-      setError(backendMessage);
+      console.error('Error en registro:', err);
+      
+      const errorDetail = err.response?.data?.detail;
+      
+      // Mensajes de error personalizados
+      if (errorDetail === 'User already exists') {
+        setError('Este correo ya está registrado. Por favor inicia sesión.');
+      } else if (errorDetail === 'Invalid UCE email') {
+        setError('Debes usar un correo institucional @uce.edu.ec');
+      } else {
+        setError(errorDetail || 'Error al registrarse. Verifica tus datos.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -74,7 +108,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
       <div className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border animate-scale-in overflow-hidden max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="gradient-primary p-6 text-center">
+        <div className="gradient-primary p-6 text-center relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
@@ -94,10 +128,19 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           
+          {/* Error Alert */}
           {error && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              {error}
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Success Alert */}
+          {success && (
+            <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              <span>¡Registro exitoso! Iniciando sesión...</span>
             </div>
           )}
 
@@ -116,6 +159,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
                 onChange={(e) => setFullName(e.target.value)}
                 className="pl-10"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -133,7 +177,11 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1.5"
               required
+              disabled={isSubmitting}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Debe ser un correo @uce.edu.ec
+            </p>
           </div>
 
           {/* Password */}
@@ -151,11 +199,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
                 className="pr-10"
                 minLength={6}
                 required
+                disabled={isSubmitting}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                disabled={isSubmitting}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -182,11 +232,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
                     : ''
                 }`}
                 required
+                disabled={isSubmitting}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                disabled={isSubmitting}
               >
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -215,9 +267,21 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
             type="submit" 
             className="w-full font-semibold" 
             size="lg"
-            disabled={!isFormValid || isSubmitting}
+            disabled={!isFormValid || isSubmitting || success}
           >
-            {isSubmitting ? 'Registrando...' : 'Crear Cuenta'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Registrando...
+              </>
+            ) : success ? (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                ¡Registrado!
+              </>
+            ) : (
+              'Crear Cuenta'
+            )}
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
@@ -226,6 +290,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
               type="button"
               onClick={onSwitchToLogin}
               className="text-primary hover:underline font-medium"
+              disabled={isSubmitting}
             >
               Iniciar Sesión
             </button>

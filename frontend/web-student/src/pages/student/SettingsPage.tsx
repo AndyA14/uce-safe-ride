@@ -115,10 +115,6 @@ const SettingsPage: React.FC = () => {
               <SelectTrigger className="w-[140px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="es">Español</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-              </SelectContent>
             </Select>
           </div>
         </div>

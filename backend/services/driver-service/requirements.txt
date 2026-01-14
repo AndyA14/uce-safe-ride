@@ -8,3 +8,4 @@ python-dotenv==1.0.1
 PyJWT==2.4.0 
 python-jose[cryptography]
 pydantic-settings
+pydantic[email]

@@ -1,45 +1,57 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
-from app.core.config import settings # Asegúrate de haber creado config.py en el paso anterior
+import os
+from uuid import UUID
 
-# Esto le dice a Swagger UI dónde buscar el botón de "Authorize"
 security = HTTPBearer()
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """
-    1. Recibe el Token del Header 'Authorization: Bearer ...'
-    2. Intenta desencriptarlo usando la CLAVE SECRETA compartida.
-    3. Si es válido, extrae el ID del usuario.
-    """
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_ISSUER = os.getenv("JWT_ISSUER", "uce-safe-ride")
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
     token = credentials.credentials
-    
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="No se pudieron validar las credenciales",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
     try:
-        # DECODIFICACIÓN: Aquí es donde ocurre la magia.
-        # Si la firma no coincide con JWT_SECRET_KEY, esto fallará y lanzará JWTError.
         payload = jwt.decode(
-            token, 
-            settings.JWT_SECRET_KEY, 
-            algorithms=[settings.JWT_ALGORITHM]
+            token,
+            JWT_SECRET_KEY,
+            algorithms=[JWT_ALGORITHM],
+            issuer=JWT_ISSUER,   # 🔒 importante
         )
-        
-        user_id: str = payload.get("sub") # 'sub' suele guardar el ID del usuario
-        if user_id is None:
-            raise credentials_exception
-            
     except JWTError:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
 
-    # Creamos una clase simple para devolver el usuario con su ID.
-    # Esto permite que en tus endpoints uses "current_user.id"
-    class UserRef:
-        def __init__(self, id):
-            self.id = id
+    user_id = payload.get("sub")
+    role = payload.get("role")
 
-    return UserRef(id=user_id)
+    if not user_id or not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+
+    return {
+        "user_id": UUID(user_id),
+        "role": role,
+        "sub": payload.get("sub"),
+    }
+def require_role(*allowed_roles: str):
+    def dependency(
+        current_user=Depends(get_current_user)
+    ):
+        if current_user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return current_user
+
+    return dependency

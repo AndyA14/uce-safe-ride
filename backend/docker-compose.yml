@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: uce_safe_ride
+      POSTGRES_DB: uce_default
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
@@ -13,20 +13,19 @@ services:
       - "5433:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d uce_safe_ride"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # Auth Service → uce_auth
   auth-service:
     build:
       context: .
       dockerfile: services/auth-service/Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_auth
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
-      ACCESS_TOKEN_EXPIRE_MINUTES: 60
-      UCE_EMAIL_DOMAIN: "@uce.edu.ec"
       JWT_ISSUER: uce-safe-ride
     depends_on:
       postgres:
@@ -35,6 +34,7 @@ services:
       - "8001:8000"
     restart: unless-stopped
 
+  # Student Service → uce_student
   student-service:
     build:
       context: .
@@ -50,27 +50,27 @@ services:
       - "8002:8000"
     restart: unless-stopped
 
-  route-service:
+  # Driver Service → uce_driver
+  driver-service:
     build:
-      context: .
-      dockerfile: services/route-service/Dockerfile
+      context: ./services/driver-service
+      dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_driver
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
-      JWT_ISSUER: uce-safe-ride
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "8003:8000"
-    restart: unless-stopped
+      - "8005:8000"
 
+  # Vehicle Service → uce_vehicle
   vehicle-service:
     build:
       context: .
       dockerfile: services/vehicle-service/Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_vehicle
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ISSUER: uce-safe-ride
     depends_on:
@@ -80,35 +80,34 @@ services:
       - "8004:8000"
     restart: unless-stopped
 
-  driver-service:
+  # Route Service → uce_route
+  route-service:
     build:
-      context: ./services/driver-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/route-service/Dockerfile
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_route
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ISSUER: uce-safe-ride
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "8005:8000"
+      - "8003:8000"
     restart: unless-stopped
 
-  tracking-service:
-    build:
-      context: .
-      dockerfile: services/tracking-service/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_safe_ride
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # API Gateway
+  api-gateway:
+    build: services/api-gateway
     ports:
-      - "8006:8000"
+      - "8015:8000"
+    depends_on:
+      - auth-service
+      - student-service
+      - driver-service
+      - vehicle-service
+      - route-service
     restart: unless-stopped
 
 volumes:
   postgres_data:
-
-

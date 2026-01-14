@@ -8,9 +8,10 @@ import { UserRole } from '@/types/user';
 import uceLogo from '@/assets/uce-logo.png';
 import { useNavigate } from 'react-router-dom';
 
+
 interface LoginModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   onSwitchToRegister?: () => void;
 }
 
@@ -19,7 +20,11 @@ const roles: { id: UserRole; label: string; icon: React.ElementType; description
   { id: 'DRIVER', label: 'Conductor', icon: Car, description: 'Gestiona tu recorrido' },
 ];
 
-const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToRegister }) => {
+const LoginModal: React.FC<LoginModalProps> = ({ 
+  isOpen = true,  
+  onClose = () => {}, 
+  onSwitchToRegister 
+}) => {
   const navigate = useNavigate();
   const { login } = useAuth();
 

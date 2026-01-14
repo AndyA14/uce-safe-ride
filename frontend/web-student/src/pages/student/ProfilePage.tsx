@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Loader2, Save, GraduationCap, Building2 } from 'lucide-react';
+import { User, Mail, Phone, Loader2, Save, GraduationCap, IdCard, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getStudentProfile, updateStudentProfile } from '@/services/studentService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ProfilePage = () => {
   const { toast } = useToast();
+  const { user: authUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Estado con TODOS los campos que pediste
+  // ✅ Estado con los campos reales del backend
   const [profile, setProfile] = useState({
     full_name: '',
     email: '',
     phone: '',
-    address: 'Quito, Ecuador', // Valor por defecto o vendría del back
-    faculty: 'Facultad de Ingeniería',
-    career: 'Ingeniería en Sistemas'
+    student_id: '',
+    career: '',
+    semester: 1
   });
 
   // CARGA DE DATOS
@@ -26,23 +28,38 @@ const ProfilePage = () => {
     const loadData = async () => {
       try {
         const data = await getStudentProfile();
+        console.log('📚 Perfil cargado:', data);
         
-        // Actualizamos localStorage inmediatamente con lo que vino del servidor
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const refreshedUser = { ...currentUser, name: data.full_name, email: data.email };
-        localStorage.setItem('user', JSON.stringify(refreshedUser));
-
-        setProfile(prev => ({
-          ...prev,
+        setProfile({
           full_name: data.full_name || '',
           email: data.email || '', 
           phone: data.phone || '',
-          // Si el backend tuviera estos campos, los mapeas aquí:
-          // address: data.address || prev.address,
-        }));
+          student_id: data.student_id || '',
+          career: data.career || '',
+          semester: data.semester || 1
+        });
+
+        // Actualizar localStorage con datos frescos
+        if (authUser) {
+          const updatedUser = { 
+            ...authUser, 
+            name: data.full_name,
+            email: data.email,
+            phone: data.phone,
+            student_id: data.student_id,
+            career: data.career,
+            semester: data.semester
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+
       } catch (error) {
-        console.error(error);
-        toast({ title: "Error", description: "No se pudo cargar la información.", variant: "destructive" });
+        console.error('❌ Error cargando perfil:', error);
+        toast({ 
+          title: "Error", 
+          description: "No se pudo cargar la información.", 
+          variant: "destructive" 
+        });
       } finally {
         setLoading(false);
       }
@@ -54,34 +71,68 @@ const ProfilePage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 1. Guardar en Backend
+      console.log('💾 Guardando perfil:', profile);
+
+      // Validación básica
+      if (!profile.full_name.trim()) {
+        toast({ 
+          title: "Error", 
+          description: "El nombre completo es obligatorio.", 
+          variant: "destructive" 
+        });
+        setSaving(false);
+        return;
+      }
+
+      // ✅ Guardar TODOS los campos editables en el backend
       await updateStudentProfile({
-        full_name: profile.full_name,
-        phone: profile.phone
+        full_name: profile.full_name.trim(),
+        phone: profile.phone.trim(),
+        // ✅ Incluir campos académicos
+        career: profile.career.trim(),
+        semester: profile.semester
       });
 
-      // 2. Persistir en localStorage (CRÍTICO PARA QUE NO SE BORRE AL CERRAR SESIÓN)
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const updatedUser = { 
-        ...currentUser, 
-        name: profile.full_name, 
-        // Si tuvieras login persistente real, esto ayuda a mantenerlo fresco
-      };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('✅ Perfil guardado exitosamente');
 
-      toast({ title: "¡Guardado!", description: "Perfil actualizado correctamente." });
-      
-      // Recarga suave para actualizar sidebar
-      window.location.reload();
+      // Actualizar localStorage
+      if (authUser) {
+        const updatedUser = { 
+          ...authUser, 
+          name: profile.full_name,
+          phone: profile.phone,
+          student_id: profile.student_id,
+          career: profile.career,
+          semester: profile.semester,
+          requiresProfileCompletion: false
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
 
-    } catch (error) {
-      toast({ title: "Error", description: "No se pudo guardar.", variant: "destructive" });
+      toast({ 
+        title: "¡Guardado!", 
+        description: "Perfil actualizado correctamente." 
+      });
+
+    } catch (error: any) {
+      console.error('❌ Error guardando:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "No se pudo guardar.", 
+        variant: "destructive" 
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+  if (loading) {
+    return (
+      <div className="p-10 flex justify-center">
+        <Loader2 className="animate-spin text-primary w-8 h-8" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-10">
@@ -89,13 +140,17 @@ const ProfilePage = () => {
       {/* Header del Perfil */}
       <div className="flex items-center gap-4 mb-6">
         <div className="w-16 h-16 rounded-full bg-[#FFC107] flex items-center justify-center text-[#003da5] text-2xl font-bold shadow-lg">
-          {profile.full_name.charAt(0).toUpperCase()}
+          {profile.full_name.charAt(0).toUpperCase() || 'E'}
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{profile.full_name}</h1>
-          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-            {profile.career}
-          </span>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {profile.full_name || 'Estudiante'}
+          </h1>
+          {profile.career && (
+            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+              {profile.career}
+            </span>
+          )}
         </div>
       </div>
       
@@ -115,11 +170,12 @@ const ProfilePage = () => {
                 value={profile.full_name} 
                 onChange={e => setProfile({...profile, full_name: e.target.value})}
                 className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
+                placeholder="Tu nombre completo"
               />
             </div>
           </div>
 
-          {/* Email */}
+          {/* Email (Read-only) */}
           <div className="space-y-2">
             <Label className="dark:text-gray-300">Correo Electrónico</Label>
             <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
@@ -137,56 +193,85 @@ const ProfilePage = () => {
               <Input 
                 value={profile.phone} 
                 onChange={e => setProfile({...profile, phone: e.target.value})} 
-                placeholder="+593..."
+                placeholder="+593 999 999 999"
                 className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
               />
             </div>
           </div>
 
-          {/* Dirección (Campo Visual Extra) */}
+          {/* ID Estudiante (Read-only) */}
           <div className="space-y-2">
-            <Label className="dark:text-gray-300">Dirección</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
-              <MapPin className="w-4 h-4 text-gray-500" />
-              <Input 
-                value={profile.address} 
-                disabled // Deshabilitado por ahora ya que no hay endpoint
-                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
-              />
+            <Label className="dark:text-gray-300">ID de Estudiante</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
+              <IdCard className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {profile.student_id || 'No asignado'}
+              </span>
             </div>
+            <p className="text-[10px] text-gray-400">Asignado por el sistema</p>
           </div>
-        </div>
-
-        <div className="flex justify-end pt-4">
-          <Button onClick={handleSave} disabled={saving} className="bg-[#FFC107] text-[#003da5] hover:bg-[#ffcd38] font-bold">
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Guardar Cambios
-          </Button>
         </div>
       </div>
 
-      {/* Tarjeta 2: Información Académica (Visual) */}
+      {/* Tarjeta 2: Información Académica */}
       <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-4">
           <GraduationCap className="w-5 h-5 text-[#003da5]" /> Información Académica
         </h2>
         
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">Facultad</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700">
-              <Building2 className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">{profile.faculty}</span>
-            </div>
-          </div>
+          {/* Carrera */}
           <div className="space-y-2">
             <Label className="dark:text-gray-300">Carrera</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700">
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
+              <BookOpen className="w-4 h-4 text-gray-500" />
+              <Input 
+                value={profile.career} 
+                onChange={e => setProfile({...profile, career: e.target.value})} 
+                placeholder="Ej: Ingeniería en Sistemas"
+                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
+              />
+            </div>
+          </div>
+
+          {/* Semestre */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">Semestre</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
               <GraduationCap className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">{profile.career}</span>
+              <select
+                value={profile.semester}
+                onChange={e => setProfile({...profile, semester: parseInt(e.target.value)})}
+                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white w-full"
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(sem => (
+                  <option key={sem} value={sem}>{sem}° Semestre</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Botón de Guardar */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleSave} 
+          disabled={saving} 
+          className="bg-[#FFC107] text-[#003da5] hover:bg-[#ffcd38] font-bold px-8"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Guardar Cambios
+            </>
+          )}
+        </Button>
       </div>
 
     </div>

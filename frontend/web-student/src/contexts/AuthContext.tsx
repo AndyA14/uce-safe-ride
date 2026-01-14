@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types/user';
-import { loginUser, logoutUser } from '@/services/authService';
+import { loginUser as loginUserService, logoutUser } from '@/services/authService';
 
 interface AuthContextType {
   user: User | null;
@@ -17,17 +17,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[AuthContext] Inicializando...');
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
 
     if (storedUser && token) {
       try {
-        setUser(JSON.parse(storedUser) as User);
+        const parsedUser = JSON.parse(storedUser) as User;
+        console.log('[AuthContext] Sesión restaurada:', parsedUser);
+        setUser(parsedUser);
       } catch (error) {
-        console.error('Error leyendo sesión local:', error);
+        console.error('❌ [AuthContext] Error leyendo sesión local:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('token');
       }
+    } else {
+      console.log('ℹ[AuthContext] No hay sesión guardada');
     }
 
     setIsLoading(false);
@@ -35,14 +40,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string, role: UserRole) => {
     try {
-      const { user: userFromApi, access_token } = await loginUser(email, password, role);
+      console.log('[AuthContext] Iniciando login...');
+      
+      const { user: userFromApi, access_token } = await loginUserService(
+        { email, password }, 
+        role                  
+      );
 
+      console.log('✅ [AuthContext] Login exitoso:', userFromApi);
       setUser(userFromApi);
       localStorage.setItem('user', JSON.stringify(userFromApi));
       localStorage.setItem('token', access_token);
 
       return userFromApi;
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [AuthContext] Error en login:', error);
+      
+      // 🚨 Manejar error específico de DRIVER sin perfil
+      if (error.message?.startsWith('DRIVER_NOT_PROVISIONED:')) {
+        // Ya se limpió el token en authService
+        localStorage.removeItem('user');
+        
+        // Extraer el mensaje limpio
+        const cleanMessage = error.message.replace('DRIVER_NOT_PROVISIONED:', '');
+        
+        // Re-lanzar con un error más específico
+        const driverError = new Error(cleanMessage);
+        (driverError as any).code = 'DRIVER_NOT_PROVISIONED';
+        throw driverError;
+      }
+      
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       throw error;
@@ -50,22 +77,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
+    console.log('[AuthContext] Cerrando sesión...');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
-    logoutUser(); // opcional: limpiar sesión del backend
+    logoutUser();
+    
+    // Redirigir a la página principal (no abrir modal de login)
+    window.location.href = '/';
   };
 
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    logout,
+  };
+
+  console.log('[AuthContext] Estado actual:', {
+    isAuthenticated: !!user,
+    isLoading,
+    user: user ? { id: user.id, email: user.email, role: user.role } : null
+  });
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
