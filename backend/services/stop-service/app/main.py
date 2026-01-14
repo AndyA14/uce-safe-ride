@@ -1,25 +1,25 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from shared.db.session import wait_for_db, engine
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
-from app.db.base import Base  
-from app.db.models import Route
-
+from app.db.base import Base
+from app.db.models import Stop  # Asegura que los modelos se registren
+from shared.db.session import wait_for_db, engine
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Route Service",
+        title="Stop Service",
         version="1.0.0"
     )
 
-    # CORS dinámico según settings o fallback
-    origins = [o.strip() for o in settings.CORS_ORIGINS.split(",")] if settings.CORS_ORIGINS else [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ]
+    # Configuración de CORS
+    origins = (
+        [o.strip() for o in settings.CORS_ORIGINS.split(",")]
+        if settings.CORS_ORIGINS
+        else ["*"]
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -29,18 +29,16 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Router
+    # Incluir routers
     app.include_router(v1_router, prefix="/api/v1")
 
+    # Evento de startup
     @app.on_event("startup")
     async def startup_event():
-        # Espera a que la DB esté lista
-        wait_for_db()
-        # Inicializa las tablas de todos los modelos de Route Service
+        wait_for_db()  # Espera a que la DB esté lista
         Base.metadata.create_all(bind=engine)
-        # Si tienes lógica adicional en init_db, puedes llamarla aquí
-        # init_db()
 
     return app
+
 
 app = create_app()

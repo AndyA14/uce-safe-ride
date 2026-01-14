@@ -1,6 +1,7 @@
 from app.db.base import Base
 from app.db.session import engine
-import app.db.models  # noqa: F401
+from app.db import models  # noqa
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)

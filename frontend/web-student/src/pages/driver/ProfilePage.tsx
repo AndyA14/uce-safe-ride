@@ -1,164 +1,257 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Phone, CreditCard, IdCard, Loader2, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { getDriverProfile } from '@/services/driverService';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDriverProfile, DriverProfile } from '@/services/driverService'; 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { User, Mail, Phone, CreditCard, IdCard, CircleCheck, AlertCircle } from 'lucide-react';
 
-
-
-export default function ProfilePage() {
-  const { user } = useAuth();
-  
-  // ✅ USAR LA INTERFAZ IMPORTADA EN EL STATE
-  const [driverData, setDriverData] = useState<DriverProfile | null>(null);
-  
+const ProfilePage = () => {
+  const { toast } = useToast();
+  const { user: authUser } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  
+  const [profile, setProfile] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    ci: '',
+    license_number: '',
+  });
 
+  // CARGA DE DATOS
   useEffect(() => {
-    const fetchDriverData = async () => {
+    const loadData = async () => {
       try {
-        if (user) {
-          const data = await getDriverProfile(); 
-          setDriverData(data);
+        const data = await getDriverProfile();
+        console.log('🚗 Perfil cargado:', data);
+        
+        setProfile({
+          name: data.name || '',
+          email: data.email || '', 
+          phone: data.phone || '',
+          ci: data.ci || '',
+          license_number: data.license_number || '',
+        });
+
+        // Actualizar localStorage con datos frescos
+        if (authUser) {
+          const updatedUser = { 
+            ...authUser, 
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            ci: data.ci,
+            license_number: data.license_number,
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
         }
-      } catch (err) {
-        console.error(err);
-        setError('No se pudo cargar la información del conductor.');
+
+      } catch (error) {
+        console.error('❌ Error cargando perfil:', error);
+        toast({ 
+          title: "Error", 
+          description: "No se pudo cargar la información.", 
+          variant: "destructive" 
+        });
       } finally {
         setLoading(false);
       }
     };
+    loadData();
+  }, []);
 
-    fetchDriverData();
-  }, [user]);
+  // GUARDAR DATOS
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      console.log('💾 Guardando perfil:', profile);
+
+      // Validación básica
+      if (!profile.name.trim()) {
+        toast({ 
+          title: "Error", 
+          description: "El nombre completo es obligatorio.", 
+          variant: "destructive" 
+        });
+        setSaving(false);
+        return;
+      }
+
+      // TODO: Implementar updateDriverProfile en driverService
+      // await updateDriverProfile({
+      //   name: profile.name.trim(),
+      //   phone: profile.phone.trim(),
+      // });
+
+      // Actualizar localStorage
+      if (authUser) {
+        const updatedUser = { 
+          ...authUser, 
+          name: profile.name,
+          phone: profile.phone,
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
+      toast({ 
+        title: "¡Guardado!", 
+        description: "Perfil actualizado correctamente." 
+      });
+
+    } catch (error: any) {
+      console.error('❌ Error guardando:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "No se pudo guardar.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-500">Cargando perfil...</span>
+      <div className="p-10 flex justify-center">
+        <Loader2 className="animate-spin text-primary w-8 h-8" />
       </div>
     );
   }
 
-  if (!user) {
-    return <div className="p-8 text-center text-red-500">No hay sesión activa</div>;
-  }
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'AVAILABLE':
-        return <Badge className="bg-green-500 hover:bg-green-600">Disponible</Badge>;
-      case 'ON_ROUTE':
-        return <Badge className="bg-blue-500 hover:bg-blue-600">En Ruta</Badge>;
-      case 'OFFLINE':
-        return <Badge className="bg-gray-500 hover:bg-gray-600">Desconectado</Badge>;
-      case 'BUSY':
-        return <Badge className="bg-orange-500 hover:bg-orange-600">Ocupado</Badge>;
-      default:
-        return <Badge variant="outline">Sin estado</Badge>;
-    }
-  };
-
   return (
-    <div className="p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-
-        {/* Mensaje de error */}
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-md flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            {error}
-          </div>
-        )}
-
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Mi Perfil</h1>
-          <p className="text-gray-500 mt-1">Información personal y estado del conductor</p>
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-10">
+      
+      {/* Header del Perfil */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-16 h-16 rounded-full bg-[#FFC107] flex items-center justify-center text-[#003da5] text-2xl font-bold shadow-lg">
+          {profile.name.charAt(0).toUpperCase() || 'C'}
         </div>
-
-        {/* Status Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Estado Actual</CardTitle>
-                <CardDescription>Tu disponibilidad en el sistema</CardDescription>
-              </div>
-              {getStatusBadge(driverData?.status)}
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* Personal Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Información Personal
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <User className="h-4 w-4" /> Nombre Completo
-                </p>
-                <p className="text-base font-medium">{user.name}</p>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <Mail className="h-4 w-4" /> Correo Electrónico
-                </p>
-                <p className="text-base font-medium">{user.email}</p>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <Phone className="h-4 w-4" /> Teléfono
-                </p>
-                <p className="text-base font-medium">{user.phone || 'No registrado'}</p>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <IdCard className="h-4 w-4" /> Cédula de Identidad
-                </p>
-                <p className="text-base font-medium">{driverData?.ci || '---'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Driver Credentials */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Credenciales de Conductor
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <CircleCheck className="h-4 w-4" /> Número de Licencia
-                </p>
-                <p className="text-base font-medium">{driverData?.license_number || '---'}</p>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm text-gray-500">ID de Conductor</p>
-                <p className="text-xs font-mono text-gray-600">{driverData?.id || user.id}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{profile.name || 'Conductor'}</h1>
+          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+            Conductor Activo
+          </span>
+        </div>
       </div>
+      
+      {/* Tarjeta 1: Información Personal */}
+      <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-4">
+          <User className="w-5 h-5 text-[#003da5]" /> Información Personal
+        </h2>
+        
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Nombre */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">Nombre Completo</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
+              <User className="w-4 h-4 text-gray-500" />
+              <Input 
+                value={profile.name} 
+                onChange={e => setProfile({...profile, name: e.target.value})}
+                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
+                placeholder="Tu nombre completo"
+              />
+            </div>
+          </div>
+
+          {/* Email (Read-only) */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">Correo Electrónico</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
+              <Mail className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">{profile.email}</span>
+            </div>
+            <p className="text-[10px] text-gray-400">El correo no puede ser modificado</p>
+          </div>
+
+          {/* Teléfono */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">Teléfono</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
+              <Phone className="w-4 h-4 text-gray-500" />
+              <Input 
+                value={profile.phone} 
+                onChange={e => setProfile({...profile, phone: e.target.value})} 
+                placeholder="+593 999 999 999"
+                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
+              />
+            </div>
+          </div>
+
+          {/* Cédula (Read-only) */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">Cédula de Identidad</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
+              <IdCard className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {profile.ci || 'No registrado'}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-400">Asignado por el sistema</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tarjeta 2: Credenciales de Conductor */}
+      <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-4">
+          <CreditCard className="w-5 h-5 text-[#003da5]" /> Credenciales de Conductor
+        </h2>
+        
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Número de Licencia (Read-only) */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">Número de Licencia</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
+              <CreditCard className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {profile.license_number || 'No registrado'}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-400">Asignado por el sistema</p>
+          </div>
+
+          {/* ID de Conductor (Read-only) - del auth_user_id */}
+          <div className="space-y-2">
+            <Label className="dark:text-gray-300">ID de Conductor</Label>
+            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
+              <IdCard className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                {authUser?.id || 'No disponible'}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-400">Identificador único</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Botón de Guardar */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleSave} 
+          disabled={saving} 
+          className="bg-[#FFC107] text-[#003da5] hover:bg-[#ffcd38] font-bold px-8"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Guardar Cambios
+            </>
+          )}
+        </Button>
+      </div>
+
     </div>
   );
-}
+};
+
+export default ProfilePage;

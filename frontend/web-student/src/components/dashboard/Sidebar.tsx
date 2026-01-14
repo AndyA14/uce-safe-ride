@@ -1,180 +1,161 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext'; 
-import { getStudentProfile } from '@/services/studentService'; // <--- USAMOS EL SERVICIO CORRECTO
 import {
-  User,
-  History,
   Bus,
-  LogOut,
+  Map as MapIcon,
+  History,
+  User,
   Settings,
-  Map,
+  LogOut,
   ChevronLeft,
   ChevronRight,
+  Navigation,
+  CreditCard,
+  Bell,
+  Bot,
+  LayoutDashboard
 } from 'lucide-react';
-import uceLogo from '@/assets/uce-logo.png';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import uceLogo from '@/assets/uce-logo.png';
 
-const Sidebar = () => {
-  const { logout, user } = useAuth(); // Datos básicos de la sesión (Auth)
-  const [collapsed, setCollapsed] = useState(false);
+type UserRole = 'STUDENT' | 'DRIVER' | 'ADMIN';
 
-  // 1. ESTADO INICIAL INTELIGENTE
-  // Intentamos leer del localStorage primero para mostrar datos AL INSTANTE.
-  // Si no hay nada, usamos los datos básicos del contexto Auth.
-  const [displayUser, setDisplayUser] = useState(() => {
-    const saved = localStorage.getItem('user');
-    const local = saved ? JSON.parse(saved) : {};
-    return {
-      name: local.name || user?.name || "Estudiante",
-      email: local.email || user?.email || "cargando..."
-    };
-  });
+interface SidebarProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
 
-  // Calculamos la inicial
-  const userInitial = displayUser.name ? displayUser.name.charAt(0).toUpperCase() : "U";
+interface NavItem {
+  to: string;
+  label: string;
+  icon: React.ElementType;
+  roles: UserRole[];
+}
 
-  // 2. EFECTO DE SINCRONIZACIÓN (Backend 8002)
-  useEffect(() => {
-    const syncData = async () => {
-      try {
-        // Pedimos los datos frescos al microservicio de Estudiantes
-        const freshData = await getStudentProfile();
-        
-        // Si hay datos, actualizamos el estado y el localStorage
-        if (freshData) {
-          const newData = {
-            name: freshData.full_name,
-            email: freshData.email,
-            // Mantenemos otros datos viejos si los hubiera
-            ...JSON.parse(localStorage.getItem('user') || '{}'),
-          };
+const navItems: NavItem[] = [
+  { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['STUDENT'] },
+  { to: '/student/tracking', label: 'Tracking', icon: Navigation, roles: ['STUDENT'] },
+  { to: '/student/transport', label: 'Mi Transporte', icon: Bus, roles: ['STUDENT'] },
+  { to: '/student/routes', label: 'Rutas', icon: MapIcon, roles: ['STUDENT'] },
+  { to: '/student/history', label: 'Historial', icon: History, roles: ['STUDENT'] },
+  { to: '/student/payments', label: 'Pagos', icon: CreditCard, roles: ['STUDENT'] },
+  { to: '/student/notifications', label: 'Notificaciones', icon: Bell, roles: ['STUDENT'] },
+  { to: '/student/assistant', label: 'Asistente', icon: Bot, roles: ['STUDENT'] },
+  { to: '/student/profile', label: 'Perfil', icon: User, roles: ['STUDENT'] },
+  { to: '/student/settings', label: 'Configuración', icon: Settings, roles: ['STUDENT'] },
+  { to: '/driver/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['DRIVER'] },
+  { to: '/driver/profile', label: 'Perfil', icon: User, roles: ['DRIVER'] },
+  { to: '/driver/history', label: 'Historial', icon: History, roles: ['DRIVER'] },
+  { to: '/driver/settings', label: 'Configuración', icon: Settings, roles: ['DRIVER'] },
+];
 
-          // Guardamos para la próxima vez
-          localStorage.setItem('user', JSON.stringify(newData));
-          
-          // Actualizamos la vista
-          setDisplayUser({
-            name: freshData.full_name,
-            email: freshData.email
-          });
-        }
-      } catch (error) {
-        console.error("No se pudo sincronizar perfil:", error);
-        // No hacemos nada visual, dejamos los datos del localStorage que ya se muestran
-      }
-    };
+const SIDEBAR_EXPANDED_WIDTH = 'w-56';
+const SIDEBAR_COLLAPSED_WIDTH = 'w-24';
 
-    syncData();
-  }, []);
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse }) => {
+  const { user, logout } = useAuth();
+  if (!user) return null;
 
-  const menuItems = [
-    { icon: Bus, label: 'Mi Transporte', path: '/student/dashboard' },
-    { icon: Map, label: 'Rutas', path: '/student/routes' },
-    { icon: History, label: 'Historial', path: '/student/history' },
-    { icon: User, label: 'Perfil', path: '/student/profile' },
-    { icon: Settings, label: 'Configuración', path: '/student/settings' },
-  ];
+  const filteredNavItems = navItems.filter(item =>
+    item.roles.includes(user.role as UserRole)
+  );
 
   return (
-    <div
+    <aside
       className={cn(
-        "h-screen bg-[#003da5] dark:bg-[#020817] text-white flex flex-col shadow-xl transition-all duration-300 z-50 shrink-0 border-r border-white/10 dark:border-slate-800 relative",
-        // Ajustamos el ancho colapsado para que quepa el logo cómodamente
-        collapsed ? "w-[90px]" : "w-64"
+        'fixed left-0 top-0 h-full z-50 flex flex-col',
+        'transition-[width] duration-300',
+        collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+        // Colores
+        'bg-[#003da5] text-white', // Modo claro
+        'dark:bg-[#0c111f] dark:text-white' // Modo oscuro: un poquito más oscuro que fondo de página
       )}
     >
-      {/* Botón Flotante para Colapsar */}
+      {/* TOGGLE */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-24 bg-[#FFC107] text-[#003da5] rounded-full p-1 shadow-md hover:scale-110 transition-transform z-50 border border-white/20"
+        onClick={onToggleCollapse}
+        className="absolute -right-3 top-24 bg-[#FFC107] text-[#003da5] rounded-full p-1 shadow-md hover:scale-110 transition-transform border border-white/20"
       >
         {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
       </button>
 
-      {/* --- HEADER --- */}
-      <div className="p-6 flex flex-col items-center border-b border-white/10 dark:border-slate-800 overflow-hidden min-h-[120px]">
-        {/* LOGO FIJO: 'shrink-0' evita que se haga pequeño */}
-        <div className="bg-white p-2 rounded-full mb-3 shadow-lg shrink-0 transition-all">
-          <img
-            src={uceLogo}
-            alt="UCE"
-            className="w-12 h-12 object-contain"
-          />
+      {/* HEADER */}
+      <div className="p-6 flex flex-col items-center border-b border-white/10 dark:border-white/20 min-h-[120px] overflow-hidden">
+        {/* Logo FIJO */}
+        <div className="shrink-0">
+          <img src={uceLogo} alt="UCE" className="w-12 h-12 object-contain" />
         </div>
 
-        {/* Texto que se oculta al colapsar */}
-        <div className={cn(
-          "text-center transition-all duration-300 overflow-hidden whitespace-nowrap",
-          collapsed ? "w-0 opacity-0 h-0" : "w-auto opacity-100 h-auto"
-        )}>
+        <div
+          className={cn(
+            'text-center transition-all duration-300 overflow-hidden whitespace-nowrap mt-3',
+            collapsed ? 'w-0 opacity-0 h-0' : 'w-auto opacity-100 h-auto'
+          )}
+        >
           <h2 className="font-bold text-lg tracking-wide">UCE Safe Ride</h2>
-          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full mt-1 font-medium inline-block">Estudiante</span>
+          <span className="text-[10px] font-medium tracking-wide uppercase">{user.role}</span>
         </div>
       </div>
 
-      {/* --- NAVEGACIÓN --- */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden">
-        {menuItems.map((item) => (
+      {/* NAV */}
+      <nav className="flex flex-col flex-1">
+        {filteredNavItems.map((item) => (
           <NavLink
-            key={item.path}
-            to={item.path}
-            title={collapsed ? item.label : ""}
+            key={item.to}
+            to={item.to}
+            title={collapsed ? item.label : ''}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group font-medium",
+                'flex-1 flex items-center gap-3 px-4 transition-colors duration-200 font-medium tracking-wide text-[15px]',
+                collapsed && 'justify-center px-0',
                 isActive
-                  ? "bg-[#FFC107] text-[#003da5] shadow-md font-bold"
-                  : "text-white/80 hover:bg-white/10 hover:text-white",
-                collapsed && "justify-center px-0"
+                  ? 'bg-[#FFC107] text-[#003da5] font-bold'
+                  : 'text-white/85 hover:bg-white/10 hover:text-white'
               )
             }
           >
-            <item.icon className="w-6 h-6 shrink-0" />
-            <span className={cn(
-              "whitespace-nowrap transition-all duration-300",
-              collapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100 block"
-            )}>
+            <item.icon className="w-5 h-5 shrink-0" />
+            <span
+              className={cn(
+                'transition-all duration-300',
+                collapsed ? 'hidden opacity-0' : 'block opacity-100'
+              )}
+            >
               {item.label}
             </span>
           </NavLink>
         ))}
       </nav>
 
-      {/* --- FOOTER (Datos del Estudiante) --- */}
-      <div className="p-4 border-t border-white/10 dark:border-slate-800 bg-[#003082] dark:bg-[#0f172a]">
-        
-        {/* Info Usuario */}
-        <div className={cn("flex items-center gap-3 mb-4 px-2", collapsed && "justify-center")}>
-          {/* Inicial / Avatar */}
-          <div className="w-10 h-10 rounded-full bg-[#FFC107] flex items-center justify-center text-[#003da5] font-bold shadow-sm shrink-0">
-            {userInitial}
+      {/* FOOTER */}
+      <div className="p-4 border-t border-white/10 dark:border-white/20 bg-[#003082] dark:bg-[#0b0f1c]">
+        <div className={cn('flex items-center gap-3 mb-4 px-2', collapsed && 'justify-center')}>
+          <div className="w-10 h-10 rounded-full bg-[#FFC107] flex items-center justify-center text-[#003da5] font-bold">
+            {user.name?.charAt(0).toUpperCase() || 'U'}
           </div>
 
-          {/* Texto (Nombre y Correo) */}
-          <div className={cn(
-            "overflow-hidden transition-all duration-300",
-            collapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100 block"
-          )}>
-            <p className="text-sm font-bold truncate max-w-[140px]" title={displayUser.name}>
-              {displayUser.name}
-            </p>
-            <p className="text-[10px] text-white/70 truncate max-w-[140px]" title={displayUser.email}>
-              {displayUser.email}
-            </p>
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-300',
+              collapsed ? 'hidden opacity-0' : 'block opacity-100'
+            )}
+          >
+            <p className="text-sm font-bold tracking-wide truncate max-w-[140px]">{user.name}</p>
+            <p className="text-[11px] text-white/70 truncate max-w-[140px] tracking-wide">{user.email}</p>
           </div>
         </div>
 
-        {/* Botón Cerrar Sesión */}
         <button
           onClick={logout}
-          className="w-full flex items-center justify-center gap-2 text-white/70 hover:text-white hover:bg-white/10 py-2 rounded-lg transition-colors text-xs font-medium"
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium tracking-wide
+                     text-white/70 hover:text-white hover:bg-white/10 transition-colors"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
-          {!collapsed && "Cerrar Sesión"}
+          <LogOut className="w-4 h-4" />
+          {!collapsed && 'Cerrar Sesión'}
         </button>
       </div>
-    </div>
+    </aside>
   );
 };
 

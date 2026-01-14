@@ -8,19 +8,16 @@ class Settings(BaseSettings):
         case_sensitive=True
     )
 
-    # App
-    PROJECT_NAME: str = "route-service"
+    PROJECT_NAME: str = "stop-service"
 
     # Database
     DATABASE_URL: str
 
     # CORS
+    # Ejemplos:
+    # "*" 
+    # "http://localhost:3000,http://localhost:5173"
     CORS_ORIGINS: str = "*"
-
-    # JWT
-    JWT_SECRET_KEY: str = "super-secret-change-me"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_ISSUER: str = "uce-safe-ride"
 
 
 settings = Settings()

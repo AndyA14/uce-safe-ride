@@ -1,18 +1,23 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom'; 
+import Sidebar from './Sidebar'; // Ajusta la ruta si es necesario
 
-const DashboardLayout = () => {
+const DashboardLayout: React.FC = () => {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="flex h-screen w-full bg-[#FAFAFA] dark:bg-[#020817] overflow-hidden transition-colors duration-300">
-      
-      {/* Sidebar fijo a la izquierda */}
-      <Sidebar />
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex">
+      {/* CORREGIDO: Solo pasamos collapsed y la función toggle */}
+      <Sidebar 
+        collapsed={collapsed} 
+        onToggleCollapse={() => setCollapsed(!collapsed)} 
+      />
 
-      {/* Contenido Principal */}
-      <main className="flex-1 h-full overflow-y-auto relative">
-        <div className="p-6 md:p-8 max-w-7xl mx-auto h-full">
-          <Outlet />
+      {/* Main Content */}
+      <main className={`flex-1 transition-all duration-300 p-8 ${collapsed ? 'ml-20' : 'ml-64'}`}>
+        <div className="max-w-7xl mx-auto">
+          {/* Outlet renderiza la página actual (Dashboard, Tracking, etc.) */}
+          <Outlet /> 
         </div>
       </main>
     </div>

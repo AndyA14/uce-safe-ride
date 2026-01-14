@@ -32,3 +32,4 @@ class DriverOut(BaseModel):
     status: DriverStatus
 
     model_config = ConfigDict(from_attributes=True)
+    

@@ -5,11 +5,11 @@ import axios from 'axios';
 ========================= */
 export interface DriverProfile {
   id: string;
-  user_id: string;
-  name: string;
-  email: string;
-  license_number?: string;
+  auth_user_id?: string;   // Opcional si tu backend no lo devuelve
+  name: string;            // CORRECCIÓN: el backend usa 'name'
+  email?: string;
   phone?: string;
+  license_number?: string;
   ci?: string;
   status?: string;
 }
@@ -17,26 +17,21 @@ export interface DriverProfile {
 /* =========================
    CONFIG AXIOS  
 ========================= */
-const API_URL = import.meta.env.VITE_DRIVER_SERVICE_URL || 'http://localhost:8005/api/v1/drivers';
+const API_URL =
+  import.meta.env.VITE_DRIVER_SERVICE_URL || 'http://localhost:8005/api/v1/drivers';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ✅ Interceptor para Token
+// ✅ Interceptor para token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  
-  if (!token) {
-    console.warn('⚠️ [DriverService] No se encontró token en localStorage');
-  } else {
-    if (config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ [DriverService] Token agregado al request');
-    }
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+    console.log('✅ [DriverService] Token agregado al request');
   }
-  
   return config;
 });
 
@@ -57,8 +52,28 @@ api.interceptors.response.use(
 );
 
 /* =========================
-   OBTENER PERFIL
+   FUNCIONES INDIVIDUALES
 ========================= */
+
+/**
+ * 1️⃣ Obtener un conductor por su ID
+ * @param driverId - UUID del conductor
+ */
+export const getDriverById = async (driverId: string): Promise<DriverProfile | null> => {
+  try {
+    console.log(`🚗 [DriverService] Obteniendo conductor con ID ${driverId}...`);
+    const response = await api.get<DriverProfile>(`/${driverId}`);
+    console.log('✅ [DriverService] Conductor obtenido:', response.data);
+    return response.data;
+  } catch (error) {
+    console.warn('❌ [DriverService] No se pudo cargar info del conductor', error);
+    return null;
+  }
+};
+
+/**
+ * 2️⃣ Obtener perfil del conductor actual (/me)
+ */
 export const getDriverProfile = async (): Promise<DriverProfile> => {
   try {
     console.log('🚗 [DriverService] Obteniendo perfil de conductor...');
@@ -69,4 +84,28 @@ export const getDriverProfile = async (): Promise<DriverProfile> => {
     console.error('❌ [DriverService] Error obteniendo perfil:', error);
     throw error;
   }
+};
+
+/**
+ * 3️⃣ Actualizar perfil del conductor (/me)
+ */
+export const updateDriverProfile = async (data: Partial<DriverProfile>): Promise<DriverProfile> => {
+  try {
+    console.log('🚗 [DriverService] Actualizando perfil de conductor...');
+    const response = await api.put<DriverProfile>('/me', data);
+    console.log('✅ [DriverService] Perfil actualizado:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ [DriverService] Error actualizando perfil:', error);
+    throw error;
+  }
+};
+
+/* =========================
+   OBJETO driverService (opcional)
+========================= */
+export const driverService = {
+  getDriverById,
+  getDriverProfile,
+  updateDriverProfile,
 };

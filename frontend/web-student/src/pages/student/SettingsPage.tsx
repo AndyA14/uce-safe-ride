@@ -1,15 +1,8 @@
-import React, { useState } from 'react';
-import { Settings, Bell, Moon, Sun, Shield, Smartphone, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Bell, Moon, Sun, Shield, Smartphone } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 const SettingsPage: React.FC = () => {
   const [notifications, setNotifications] = useState({
@@ -18,17 +11,24 @@ const SettingsPage: React.FC = () => {
     alerts: true,
     email: false,
   });
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState('es');
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle('dark');
+  const [darkMode, setDarkMode] = useState(false);
+
+  // 🔹 Sincronizar estado con el DOM al cargar
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setDarkMode(isDark);
+  }, []);
+
+  const toggleDarkMode = (checked: boolean) => {
+    setDarkMode(checked);
+    document.documentElement.classList.toggle('dark', checked);
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
+
+      {/* --- HEADER --- */}
       <div className="uce-card p-6">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <Settings className="w-7 h-7 text-primary" strokeWidth={1.5} />
@@ -37,7 +37,7 @@ const SettingsPage: React.FC = () => {
         <p className="text-muted-foreground mt-1">Personaliza tu experiencia en UCE Safe Ride</p>
       </div>
 
-      {/* Notifications */}
+      {/* --- NOTIFICATIONS --- */}
       <div className="uce-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Bell className="w-5 h-5 text-primary" strokeWidth={1.5} />
@@ -87,7 +87,7 @@ const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Appearance */}
+      {/* --- APPEARANCE --- */}
       <div className="uce-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           {darkMode ? <Moon className="w-5 h-5 text-primary" strokeWidth={1.5} /> : <Sun className="w-5 h-5 text-primary" strokeWidth={1.5} />}
@@ -104,23 +104,10 @@ const SettingsPage: React.FC = () => {
               onCheckedChange={toggleDarkMode}
             />
           </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="font-medium flex items-center gap-2">
-                <Globe className="w-4 h-4" /> Idioma
-              </Label>
-              <p className="text-sm text-muted-foreground">Selecciona tu idioma preferido</p>
-            </div>
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-            </Select>
-          </div>
         </div>
       </div>
 
-      {/* Privacy & Security */}
+      {/* --- PRIVACY & SECURITY --- */}
       <div className="uce-card p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Shield className="w-5 h-5 text-primary" strokeWidth={1.5} />
@@ -148,7 +135,7 @@ const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Save Button */}
+      {/* --- SAVE BUTTON --- */}
       <Button className="w-full font-semibold" size="lg">
         Guardar Cambios
       </Button>

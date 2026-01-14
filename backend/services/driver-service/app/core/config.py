@@ -1,10 +1,22 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Metadata del servicio
+    PROJECT_NAME: str = "stop-service"
 
+    # Base de datos
     DATABASE_URL: str
-    JWT_SECRET_KEY: str = "super-secret-change-me"
-    JWT_ALGORITHM: str = "HS256"
+
+    # CORS
+    # Puede venir como:
+    # "http://localhost:3000,http://localhost:5173"
+    # o simplemente "*"
+    CORS_ORIGINS: str | None = "*"
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
 
 settings = Settings()

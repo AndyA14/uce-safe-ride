@@ -1,16 +1,17 @@
+# Dockerfile en services/stop-service/Dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias
-COPY services/route-service/requirements.txt /app/requirements.txt
+# Copiar requirements
+COPY services/stop-service/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copiar código
+COPY services/stop-service/app /app/app
 COPY shared /app/shared
-COPY services/route-service/app /app/app
 
-# PYTHONPATH para que app.main sea importable
+# PYTHONPATH
 ENV PYTHONPATH=/app
 
 EXPOSE 8000
