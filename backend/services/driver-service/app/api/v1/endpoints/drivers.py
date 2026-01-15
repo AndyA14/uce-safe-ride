@@ -16,6 +16,7 @@ from app.api.v1.schemas.drivers import (
 
 router = APIRouter()
 
+
 @router.get("/me", response_model=DriverOut)
 def get_my_driver(
     current_user: Dict[str, Any] = Depends(require_role("DRIVER")),
@@ -34,6 +35,7 @@ def get_my_driver(
         )
 
     return driver
+
 
 @router.put("/me", response_model=DriverOut)
 def update_my_driver(
@@ -65,6 +67,7 @@ def update_my_driver(
     db.refresh(driver)
     return driver
 
+
 @router.patch("/me/status", response_model=DriverOut)
 def set_my_driver_status(
     payload: DriverStatusUpdateIn,
@@ -88,6 +91,7 @@ def set_my_driver_status(
     db.refresh(driver)
     return driver
 
+
 @router.post(
     "",
     response_model=DriverOut,
@@ -98,7 +102,6 @@ def create_driver(
     _: Dict[str, Any] = Depends(require_role("ADMIN")),
     db: Session = Depends(get_db),
 ):
-    # Unicidad por usuario auth
     if db.query(Driver).filter(
         Driver.auth_user_id == payload.auth_user_id
     ).first():
@@ -107,7 +110,6 @@ def create_driver(
             detail="Driver already exists for this user"
         )
 
-    # Unicidad CI
     if db.query(Driver).filter(
         Driver.ci == payload.ci
     ).first():
@@ -116,7 +118,6 @@ def create_driver(
             detail="CI already in use"
         )
 
-    # Unicidad licencia
     if db.query(Driver).filter(
         Driver.license_number == payload.license_number
     ).first():
@@ -139,6 +140,7 @@ def create_driver(
     db.refresh(driver)
     return driver
 
+
 @router.get("", response_model=List[DriverOut])
 def list_drivers(
     _: Dict[str, Any] = Depends(require_role("ADMIN")),
@@ -153,16 +155,16 @@ def list_drivers(
 @router.get("/{driver_id}", response_model=DriverOut)
 def get_driver_by_id(
     driver_id: UUID,
-    _: Dict[str, Any] = Depends(require_role("ADMIN")),
+    _: Dict[str, Any] = Depends(
+        require_role("ADMIN", "DRIVER", "STUDENT")
+    ),
     db: Session = Depends(get_db),
 ):
     driver = db.get(Driver, driver_id)
-
     if not driver:
         raise HTTPException(
             status_code=404,
             detail="Driver not found"
         )
-
     return driver
 

@@ -20,7 +20,7 @@ function App() {
       <ThemeProvider>
         <BrowserRouter>
           <TooltipProvider>
-            {/* ✅ AuthProvider debe envolver TODO el router */}
+
             <AuthProvider>
               <AppRouter />
             </AuthProvider>

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Set, Union
+from typing import Dict, Iterable, List, Optional, Set, Union
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -21,18 +21,14 @@ class Principal:
 def _normalize_roles(
     allowed_roles: Union[str, Iterable[str], Iterable[Iterable[str]]]
 ) -> Set[str]:
-    # Si viene un string directo
     if isinstance(allowed_roles, str):
         return {allowed_roles.upper()}
 
-    # Si viene algo iterable (lista/tupla/set)
     normalized: List[str] = []
     for item in allowed_roles:
-        # item puede ser "ADMIN" o ["ADMIN", ...]
         if isinstance(item, str):
             normalized.append(item)
         else:
-            # item es iterable de strings (ej: ["ADMIN"])
             for sub in item:
                 normalized.append(sub)
 
@@ -42,6 +38,9 @@ def _normalize_roles(
 def get_current_principal(
     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> Principal:
+    """
+    Extrae y valida el JWT, retornando un Principal con user_id y role
+    """
     token = creds.credentials
 
     try:
@@ -51,16 +50,18 @@ def get_current_principal(
             algorithms=["HS256"],
             options={"verify_aud": False},
         )
-    except JWTError:
+    except JWTError as e:
+        print(f"❌ [JWT] Error decodificando token: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
 
-    # Validaciones mínimas
     user_id: Optional[str] = payload.get("sub")
     role: Optional[str] = payload.get("role")
     issuer: Optional[str] = payload.get("iss")
+
+    print(f"🔍 [JWT] Payload decodificado: user_id={user_id}, role={role}, issuer={issuer}")
 
     if not user_id or not role:
         raise HTTPException(
@@ -78,14 +79,22 @@ def get_current_principal(
 
 
 def require_role(allowed_roles: Union[str, Iterable[str], Iterable[Iterable[str]]]):
+    """
+    ✅ CORREGIDO: Ahora retorna un dict con user_id y role
+    """
     allowed = _normalize_roles(allowed_roles)
 
-    def _dep(principal: Principal = Depends(get_current_principal)) -> str:
+    def _dep(principal: Principal = Depends(get_current_principal)) -> Dict[str, str]:
+        print(f"🔐 [Auth] Verificando rol: {principal.role} contra permitidos: {allowed}")
+        
         if principal.role.upper() not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden",
+                detail=f"Forbidden: role '{principal.role}' not in {allowed}",
             )
-        return principal.role
+        return {
+            "user_id": principal.user_id,
+            "role": principal.role
+        }
 
     return _dep

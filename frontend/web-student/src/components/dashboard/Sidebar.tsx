@@ -67,9 +67,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse }) => {
         'fixed left-0 top-0 h-full z-50 flex flex-col',
         'transition-[width] duration-300',
         collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
-        // Colores
-        'bg-[#003da5] text-white', // Modo claro
-        'dark:bg-[#0c111f] dark:text-white' // Modo oscuro: un poquito más oscuro que fondo de página
+        'bg-[#003da5] text-white',
+        'dark:bg-[#0c111f] dark:text-white'
       )}
     >
       {/* TOGGLE */}
@@ -82,7 +81,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse }) => {
 
       {/* HEADER */}
       <div className="p-6 flex flex-col items-center border-b border-white/10 dark:border-white/20 min-h-[120px] overflow-hidden">
-        {/* Logo FIJO */}
         <div className="shrink-0">
           <img src={uceLogo} alt="UCE" className="w-12 h-12 object-contain" />
         </div>

@@ -29,12 +29,11 @@ const ProfilePage = () => {
         const data = await getStudentProfile();
         console.log('📚 Perfil cargado:', data);
 
-        // 🔹 Corregir intercambio de email y student_id
         setProfile({
           full_name: data.full_name || '',
-          email: data.student_id || authUser?.email || '',
+          email: data.email || authUser?.email || '',           // CORREGIDO
           phone: data.phone || '',
-          student_id: data.email || authUser?.student_id || '',
+          student_id: data.student_id || authUser?.student_id || '', // CORREGIDO
           career: data.career || 'Sistemas de Información',
           semester: data.semester || 8
         });
@@ -44,9 +43,9 @@ const ProfilePage = () => {
           const updatedUser = {
             ...authUser,
             name: data.full_name || '',
-            email: data.student_id || authUser.email || '',
+            email: data.email || authUser.email || '',           // CORREGIDO
             phone: data.phone || '',
-            student_id: data.email || authUser.student_id || '',
+            student_id: data.student_id || authUser.student_id || '', // CORREGIDO
             career: data.career || 'Sistemas de Información',
             semester: data.semester || 8,
             requiresProfileCompletion: false

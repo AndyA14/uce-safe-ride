@@ -1,18 +1,12 @@
+# vehicle-service/app/db/models.py
 import uuid
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    DateTime,
-    Boolean,
-    ForeignKey
-)
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
-
 
 # =========================
 # VEHICLE MODEL
@@ -33,11 +27,7 @@ class Vehicle(Base):
     # ID del conductor (auth / users service)
     driver_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relación: 1 vehículo → muchos pasajeros
     passengers = relationship(
@@ -63,17 +53,9 @@ class Passenger(Base):
         index=True
     )
 
-    # Auth ID del estudiante
     student_user_id = Column(String, nullable=False, index=True)
-
-    # ON_BOARD | DROPPED_OFF | HISTORY
     status = Column(String, nullable=False, default="ON_BOARD")
-
-    joined_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-
-    # Relación inversa
+    start_time = Column(DateTime, default=datetime.utcnow, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     vehicle = relationship("Vehicle", back_populates="passengers")

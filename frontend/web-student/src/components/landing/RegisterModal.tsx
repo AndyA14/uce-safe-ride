@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { registerUser } from '@/services/authService'; 
 import { useNavigate } from 'react-router-dom';
 import uceLogo from '@/assets/uce-logo.png';
+import { toast } from '@/components/ui/use-toast'; // Opcional, si tienes toast
 
 interface RegisterModalProps {
   isOpen: boolean;
@@ -17,12 +18,10 @@ interface RegisterModalProps {
 const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitchToLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,9 +42,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    
+
     if (!isFormValid) return;
-    
+
     setIsSubmitting(true);
 
     try {
@@ -54,38 +53,34 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
       // 1. Registrar en Auth Service
       await registerUser(fullName, email, password, 'STUDENT');
       console.log('Usuario registrado exitosamente');
-      
       setSuccess(true);
-      
-      // 2. Hacer login automático
+
+      // 2. Login automático
       try {
         console.log('Iniciando sesión automática...');
         const user = await login(email, password, 'STUDENT');
-        
         console.log('Login exitoso:', user);
         onClose();
-        
-        // 3. El backend auto-crea el perfil, así que siempre redirigimos a completar perfil
-        // (El perfil tendrá full_name="Estudiante nuevo")
-        navigate('/student/complete-profile', {
-          state: { 
-            message: '¡Registro exitoso! Completa tu perfil para comenzar.' 
-          }
+
+        // Toast opcional
+        toast({
+          title: 'Cuenta creada',
+          description: 'Bienvenido, completa tu perfil para empezar.',
         });
-        
+
+        // 3. Redirigir al perfil
+        navigate('/student/profile');
       } catch (loginErr: any) {
         console.error('Error en login automático:', loginErr);
-        // Si falla el login automático, mostrar pantalla de login
         setSuccess(false);
         onSwitchToLogin();
       }
 
     } catch (err: any) {
       console.error('Error en registro:', err);
-      
+
       const errorDetail = err.response?.data?.detail;
-      
-      // Mensajes de error personalizados
+
       if (errorDetail === 'User already exists') {
         setError('Este correo ya está registrado. Por favor inicia sesión.');
       } else if (errorDetail === 'Invalid UCE email') {
@@ -100,13 +95,15 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay */}
       <div 
         className="absolute inset-0 bg-foreground/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
+      {/* Modal */}
       <div className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border animate-scale-in overflow-hidden max-h-[90vh] overflow-y-auto">
-        
+
         {/* Header */}
         <div className="gradient-primary p-6 text-center relative">
           <button
@@ -115,7 +112,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
           >
             <X className="w-5 h-5 text-white" />
           </button>
-          
+
           <img 
             src={uceLogo} 
             alt="UCE Logo" 
@@ -124,10 +121,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
           <h2 className="text-xl font-bold text-white">Registro de Estudiante</h2>
           <p className="text-white/80 text-sm mt-1">UCE Safe Ride</p>
         </div>
-        
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          
+
           {/* Error Alert */}
           {error && (
             <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md flex items-center gap-2">
@@ -243,7 +240,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            
+
             {passwordTouched && (
               <div className={`flex items-center gap-1.5 mt-2 text-sm ${
                 passwordsMatch ? 'text-green-600' : 'text-destructive'
@@ -263,6 +260,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSwitch
             )}
           </div>
 
+          {/* Submit Button */}
           <Button 
             type="submit" 
             className="w-full font-semibold" 

@@ -1,12 +1,13 @@
 import axios from 'axios';
-import { LoginResponse, UserRole, User, DriverStatus } from '@/types/user';
+import { LoginResponse, UserRole, User } from '@/types/user';
 import { getStudentProfile } from './studentService';
-import { driverService } from './driverService';
+import { getDriverProfile } from '@/services/driverService';
 
 /* =========================
    CONFIG
 ========================= */
-const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8001/api/v1';
+const AUTH_SERVICE_URL =
+  import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8001/api/v1';
 
 console.log('🔧 AUTH_SERVICE_URL configurado:', AUTH_SERVICE_URL);
 
@@ -14,7 +15,7 @@ const authApi = axios.create({
   baseURL: AUTH_SERVICE_URL,
 });
 
-// ✅ Interceptor para logging de requests
+// 📤 Request interceptor (logging)
 authApi.interceptors.request.use(
   (config) => {
     console.log('📤 Request enviado:', {
@@ -23,7 +24,7 @@ authApi.interceptors.request.use(
       baseURL: config.baseURL,
       fullURL: `${config.baseURL}${config.url}`,
       headers: config.headers,
-      data: config.data
+      data: config.data,
     });
     return config;
   },
@@ -33,14 +34,14 @@ authApi.interceptors.request.use(
   }
 );
 
-// ✅ Interceptor para logging de responses
+// 📥 Response interceptor (logging)
 authApi.interceptors.response.use(
   (response) => {
     console.log('✅ Response recibido:', {
       status: response.status,
       statusText: response.statusText,
       data: response.data,
-      headers: response.headers
+      headers: response.headers,
     });
     return response;
   },
@@ -52,8 +53,8 @@ authApi.interceptors.response.use(
       config: {
         url: error.config?.url,
         method: error.config?.method,
-        data: error.config?.data
-      }
+        data: error.config?.data,
+      },
     });
     return Promise.reject(error);
   }
@@ -80,7 +81,6 @@ export const loginUser = async (
     console.log('='.repeat(60));
     console.log('📧 Email:', credentials.email);
     console.log('👤 Rol:', role);
-    console.log('🌐 URL Auth Service:', AUTH_SERVICE_URL);
 
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -90,25 +90,31 @@ export const loginUser = async (
       password: credentials.password,
     };
 
-    console.log('📦 Payload:', { email: loginPayload.email, password: '***' });
+    console.log('📦 Payload:', {
+      email: loginPayload.email,
+      password: '***',
+    });
 
     const authResponse = await authApi.post('/auth/login', loginPayload, {
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        Accept: 'application/json',
       },
     });
 
     const { access_token } = authResponse.data;
-    if (!access_token) throw new Error('No se recibió token de autenticación');
+    if (!access_token) {
+      throw new Error('No se recibió token de autenticación');
+    }
 
     localStorage.setItem('token', access_token);
 
-    let userProfile: User | null = null;
+    let userProfile: User;
 
     try {
       if (role === 'STUDENT') {
         const student = await getStudentProfile();
+
         userProfile = {
           id: student.student_id || 'unknown',
           name: student.full_name,
@@ -120,20 +126,21 @@ export const loginUser = async (
           semester: student.semester,
         };
       } else if (role === 'DRIVER') {
-        const driver = await driverService.getDriverProfile();
-        if (!driver) throw new Error('Perfil de conductor no encontrado');
+        const driver = await getDriverProfile();
+        if (!driver) {
+          throw new Error('Perfil de conductor no encontrado');
+        }
 
         userProfile = {
-          id: driver.id,  // ✅ usamos id, no user_id
+          id: driver.id,
           name: driver.name,
           email: driver.email,
           role: 'DRIVER',
           phone: driver.phone || undefined,
-          ci: driver.ci,
           license_number: driver.license_number,
-          status: (driver.status || 'AVAILABLE') as DriverStatus,
         };
       } else {
+        // ADMIN u otros roles
         userProfile = {
           id: 'admin',
           name: 'Administrador',
@@ -141,14 +148,18 @@ export const loginUser = async (
           role,
         };
       }
-    } catch (profileError: any) {
+    } catch (profileError) {
       localStorage.removeItem('token');
       throw profileError;
     }
 
-    return { user: userProfile, access_token };
+    localStorage.setItem('user', JSON.stringify(userProfile));
 
-  } catch (error: any) {
+    return {
+      user: userProfile,
+      access_token,
+    };
+  } catch (error) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     throw error;
@@ -168,7 +179,7 @@ export const registerUser = async (
     email: email.trim(),
     password,
     role,
-  });  
+  });
 
   return {
     id: response.data.id,

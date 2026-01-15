@@ -1,66 +1,53 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
 from uuid import UUID
-from typing import Literal, Optional
-
+from datetime import datetime
 
 # =========================
 # ENUMS / TYPES
 # =========================
+
 VehicleType = Literal["BUS", "MINIBUS"]
 VehicleStatus = Literal["AVAILABLE", "IN_ROUTE", "OFFLINE"]
-
 PassengerStatus = Literal["ON_BOARD", "DROPPED_OFF", "HISTORY"]
-
 
 # =========================
 # VEHICLE SCHEMAS
 # =========================
 
-# -------------------------
-# Base compartido
-# -------------------------
 class VehicleBase(BaseModel):
-    plate: str
+    plate: str = Field(..., min_length=1, max_length=20)
     vehicle_type: VehicleType
-    capacity: int
+    capacity: int = Field(..., gt=0)
     status: VehicleStatus = "AVAILABLE"
     model: Optional[str] = None
 
 
-# -------------------------
-# Entrada para creación
-# -------------------------
 class VehicleCreateIn(VehicleBase):
     driver_id: Optional[UUID] = None
 
 
-# -------------------------
-# Entrada para actualización
-# -------------------------
 class VehicleUpdateIn(BaseModel):
-    plate: Optional[str] = None
+    plate: Optional[str] = Field(None, min_length=1, max_length=20)
     vehicle_type: Optional[VehicleType] = None
-    capacity: Optional[int] = None
+    capacity: Optional[int] = Field(None, gt=0)
     status: Optional[VehicleStatus] = None
-    model: Optional[str] = None
     driver_id: Optional[UUID] = None
+    model: Optional[str] = None
 
 
-# -------------------------
-# Entrada solo para estado
-# -------------------------
 class VehicleStatusUpdateIn(BaseModel):
     status: VehicleStatus
 
 
-# -------------------------
-# Salida (respuesta API)
-# -------------------------
 class VehicleOut(VehicleBase):
     id: UUID
     driver_id: Optional[UUID] = None
-    driver_name: Optional[str] = None
-    driver_rating: Optional[float] = None
+    is_active: bool
+
+    # ✅ CAMPOS CORREGIDOS (EVITAN ResponseValidationError)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -70,16 +57,10 @@ class VehicleOut(VehicleBase):
 # PASSENGER SCHEMAS
 # =========================
 
-# -------------------------
-# Entrada para subir al bus
-# -------------------------
 class PassengerJoinIn(BaseModel):
     student_user_id: str
 
 
-# -------------------------
-# Respuesta al subir
-# -------------------------
 class JoinResponse(BaseModel):
     message: str
     vehicle_id: UUID
@@ -87,9 +68,6 @@ class JoinResponse(BaseModel):
     status: PassengerStatus
 
 
-# -------------------------
-# Salida Passenger
-# -------------------------
 class PassengerOut(BaseModel):
     id: UUID
     vehicle_id: UUID

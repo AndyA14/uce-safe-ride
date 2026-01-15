@@ -4,6 +4,7 @@ import { loginUser as loginUserService, logoutUser } from '@/services/authServic
 
 interface AuthContextType {
   user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>; // <-- agregamos
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string, role: UserRole) => Promise<User>;
@@ -41,11 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string, role: UserRole) => {
     try {
       console.log('[AuthContext] Iniciando login...');
-      
-      const { user: userFromApi, access_token } = await loginUserService(
-        { email, password }, 
-        role                  
-      );
+      const { user: userFromApi, access_token } = await loginUserService({ email, password }, role);
 
       console.log('✅ [AuthContext] Login exitoso:', userFromApi);
       setUser(userFromApi);
@@ -55,21 +52,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return userFromApi;
     } catch (error: any) {
       console.error('❌ [AuthContext] Error en login:', error);
-      
-      // 🚨 Manejar error específico de DRIVER sin perfil
-      if (error.message?.startsWith('DRIVER_NOT_PROVISIONED:')) {
-        // Ya se limpió el token en authService
-        localStorage.removeItem('user');
-        
-        // Extraer el mensaje limpio
-        const cleanMessage = error.message.replace('DRIVER_NOT_PROVISIONED:', '');
-        
-        // Re-lanzar con un error más específico
-        const driverError = new Error(cleanMessage);
-        (driverError as any).code = 'DRIVER_NOT_PROVISIONED';
-        throw driverError;
-      }
-      
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       throw error;
@@ -82,36 +64,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('token');
     setUser(null);
     logoutUser();
-    
-    // Redirigir a la página principal (no abrir modal de login)
     window.location.href = '/';
   };
 
   const value = {
     user,
+    setUser, // <-- exportamos setUser
     isAuthenticated: !!user,
     isLoading,
     login,
     logout,
   };
 
-  console.log('[AuthContext] Estado actual:', {
-    isAuthenticated: !!user,
-    isLoading,
-    user: user ? { id: user.id, email: user.email, role: user.role } : null
-  });
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
