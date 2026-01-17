@@ -2,12 +2,10 @@ import pika
 import json
 import time
 import asyncio
-
 from app.core.config import RABBITMQ_HOST, RABBITMQ_USER, RABBITMQ_PASSWORD
 from app.websocket.manager import manager
-# -----------------------------------------------------
 
-def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
+def start_rabbit_consumer(loop, stop_event):
     while not stop_event.is_set():
         try:
             print("🐰 Connecting to RabbitMQ...")
@@ -37,7 +35,6 @@ def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
             result = channel.queue_declare(queue="", exclusive=True)
             queue_name = result.method.queue
 
-            # Binding key '#' para escuchar todo
             channel.queue_bind(
                 exchange="notifications.exchange",
                 queue=queue_name,
@@ -49,7 +46,6 @@ def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
             def callback(ch, method, properties, body):
                 try:
                     event = json.loads(body)
-                    print(f"📩 WS Gateway received: {method.routing_key} -> {event}")
                     
                     student_id = event.get("student_id")
 
@@ -70,14 +66,14 @@ def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
             while not stop_event.is_set():
                 connection.process_data_events(time_limit=1)
 
-            print("🛑 Stopping RabbitMQ consumer...")
-            channel.close()
-            connection.close()
+            print("Stopping RabbitMQ consumer...")
+            if connection.is_open:
+                connection.close()
 
         except pika.exceptions.AMQPConnectionError:
-            print("❌ RabbitMQ not available. Retrying in 5 seconds...")
+            print("RabbitMQ not available. Retrying in 5 seconds...")
             time.sleep(5)
 
         except Exception as e:
-            print("❌ Unexpected RabbitMQ error:", e)
+            print(f"Unexpected RabbitMQ error: {e}")
             time.sleep(5)

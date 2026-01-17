@@ -1,17 +1,26 @@
 from fastapi import WebSocket, Query, status
-from app.core.jwt import validate_token 
-from shared.security.jwt import validate_token
+from jose import JWTError  # Necesario para capturar errores de token
+from shared.security.jwt import decode_token 
 
-
-async def get_current_user_ws(
+async def get_current_user(
     websocket: WebSocket, 
-    token: str = Query(...) 
+    token: str = Query(None)
 ):
-    payload = validate_token(token)
-    
-    if not payload:
-        print("⛔ Conexión WS rechazada: Token inválido")
+
+    if not token:
+        print("⛔ Rechazado: Falta el token en la URL.")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return None
+
+    try:
+        payload = decode_token(token)
         
-    return payload
+        if not payload:
+            raise JWTError("Payload vacío")
+            
+        return payload
+
+    except JWTError:
+        print("⛔ Rechazado: Token inválido o expirado.")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return None
