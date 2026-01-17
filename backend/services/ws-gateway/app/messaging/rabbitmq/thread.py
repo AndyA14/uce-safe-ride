@@ -1,6 +1,6 @@
 import threading
 import asyncio
-from messaging.rabbitmq.consumer import start_rabbit_consumer
+from app.messaging.rabbitmq.consumer import start_rabbit_consumer
 
 _stop_event = threading.Event()
 _thread = None

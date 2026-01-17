@@ -2,8 +2,10 @@ import pika
 import json
 import time
 import asyncio
-from core.config import RABBITMQ_HOST, RABBITMQ_USER, RABBITMQ_PASSWORD
-from websocket.manager import manager
+
+from app.core.config import RABBITMQ_HOST, RABBITMQ_USER, RABBITMQ_PASSWORD
+from app.websocket.manager import manager
+# -----------------------------------------------------
 
 def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
     while not stop_event.is_set():
@@ -34,12 +36,13 @@ def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
 
             result = channel.queue_declare(queue="", exclusive=True)
             queue_name = result.method.queue
+
+            # Binding key '#' para escuchar todo
             channel.queue_bind(
                 exchange="notifications.exchange",
                 queue=queue_name,
                 routing_key="#"
             )
-            # -----------------------
 
             print(f"🐰 RabbitMQ consumer started on queue {queue_name} binding to '#'")
 

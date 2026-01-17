@@ -273,8 +273,8 @@ services:
   # ==================================================
   ws-gateway:
     build:
-      context: services/ws-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/ws-gateway/Dockerfile
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
@@ -283,7 +283,7 @@ services:
       PYTHONUNBUFFERED: 1
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ALGORITHM: HS256
-      
+
     depends_on:
       rabbitmq:
         condition: service_healthy
