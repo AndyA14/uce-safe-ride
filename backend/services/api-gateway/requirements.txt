@@ -1,5 +1,0 @@
-fastapi
-httpx
-pydantic
-uvicorn
-pydantic-settings
