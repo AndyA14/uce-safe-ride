@@ -7,6 +7,32 @@ volumes:
 
 services:
   # ==================================================
+  # RABBITMQ
+  # ==================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - uce-net
+    environment:
+      RABBITMQ_DEFAULT_USER: uce
+      RABBITMQ_DEFAULT_PASS: uce123
+    # --- AGREGA ESTA SECCIÓN ---
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ---------------------------
+    restart: unless-stopped
+    # UI disponible en:
+    # http://localhost:15672
+    # user: uce | pass: uce123
+
+  # ==================================================
   # ZOOKEEPER
   # ==================================================
   zookeeper:
@@ -46,7 +72,7 @@ services:
       - uce-net
     restart: unless-stopped
 
-# ==================================================
+  # ==================================================
   # MONGODB
   # ==================================================
   mongo:
@@ -63,7 +89,6 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
-
 
   # ==================================================
   # POSTGRESQL
@@ -108,7 +133,6 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
-
   # ==================================================
   # STUDENT SERVICE
   # ==================================================
@@ -128,7 +152,6 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
-
   # ==================================================
   # DRIVER SERVICE
   # ==================================================
@@ -139,15 +162,20 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_driver
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: uce
+      RABBITMQ_PASS: uce123
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     ports:
       - "8005:8000"
     networks:
       - uce-net
     restart: unless-stopped
-
   # ==================================================
   # VEHICLE SERVICE
   # ==================================================
@@ -222,13 +250,36 @@ services:
       MONGO_DB: notification_db
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPICS: route.started,bus.near_stop,payment.completed,route.traffic_detected,bus.arrived_uce
+      RABBITMQ_URL: amqp://uce:uce123@rabbitmq:5672/
     depends_on:
       kafka:
         condition: service_healthy
       mongo:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "8008:8000"
+    networks:
+      - uce-net
+    restart: unless-stopped
+
+  # ==================================================
+  # WS GATEWAY
+  # ==================================================
+  ws-gateway:
+    build:
+      context: services/ws-gateway
+      dockerfile: Dockerfile
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: uce
+      RABBITMQ_PASSWORD: uce123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "8009:8000"
     networks:
       - uce-net
     restart: unless-stopped

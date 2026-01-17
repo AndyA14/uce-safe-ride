@@ -13,6 +13,7 @@ from app.api.v1.schemas.drivers import (
     DriverOut,
     DriverStatusUpdateIn,
 )
+from messaging.rabbitmq.publisher import publish_notification
 
 router = APIRouter()
 
@@ -168,3 +169,16 @@ def get_driver_by_id(
         )
     return driver
 
+
+@router.post("/routes/{route_id}/near-stop")
+def bus_near_stop(route_id: str, student_id: str):
+    event = {
+        "type": "bus.near_stop",
+        "route_id": route_id,
+        "student_id": student_id,
+        "message": "El bus está cerca de tu parada"
+    }
+
+    publish_notification(event)
+
+    return {"status": "notification_sent"}
