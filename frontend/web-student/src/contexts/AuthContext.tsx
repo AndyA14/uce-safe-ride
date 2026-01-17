@@ -4,7 +4,8 @@ import { loginUser as loginUserService, logoutUser } from '@/services/authServic
 
 interface AuthContextType {
   user: User | null;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>; // <-- agregamos
+  token: string | null; // 🆕 1. Agregamos el token a la interfaz
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string, role: UserRole) => Promise<User>;
@@ -15,43 +16,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null); // 🆕 2. Estado para el token
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     console.log('[AuthContext] Inicializando...');
     const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    const storedToken = localStorage.getItem('token');
 
-    if (storedUser && token) {
+    if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser) as User;
-        console.log('[AuthContext] Sesión restaurada:', parsedUser);
         setUser(parsedUser);
+        setToken(storedToken); // 🆕 3. Recuperamos token al recargar página
       } catch (error) {
         console.error('❌ [AuthContext] Error leyendo sesión local:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('token');
       }
-    } else {
-      console.log('ℹ[AuthContext] No hay sesión guardada');
     }
-
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string, role: UserRole) => {
     try {
-      console.log('[AuthContext] Iniciando login...');
       const { user: userFromApi, access_token } = await loginUserService({ email, password }, role);
-
-      console.log('✅ [AuthContext] Login exitoso:', userFromApi);
+      
       setUser(userFromApi);
+      setToken(access_token); 
+      
       localStorage.setItem('user', JSON.stringify(userFromApi));
       localStorage.setItem('token', access_token);
 
       return userFromApi;
     } catch (error: any) {
-      console.error('❌ [AuthContext] Error en login:', error);
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       throw error;
@@ -59,17 +57,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
-    console.log('[AuthContext] Cerrando sesión...');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
+    setToken(null); 
     logoutUser();
     window.location.href = '/';
   };
 
   const value = {
     user,
-    setUser, // <-- exportamos setUser
+    token, 
+    setUser,
     isAuthenticated: !!user,
     isLoading,
     login,
