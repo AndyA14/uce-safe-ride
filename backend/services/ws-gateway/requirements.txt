@@ -2,3 +2,5 @@ fastapi
 uvicorn
 pika
 uvicorn[standard]
+python-jose[cryptography]
+
