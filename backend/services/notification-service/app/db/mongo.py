@@ -1,4 +1,3 @@
-# db/mongo.py
 import time
 from pymongo import MongoClient, errors
 from core.config import MONGO_URI, MONGO_DB

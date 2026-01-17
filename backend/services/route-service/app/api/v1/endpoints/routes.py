@@ -6,6 +6,11 @@ from app.db.sessions import get_db
 from app.db.models import Route
 from app.schemas.routes import RouteCreateIn, RouteUpdateIn, RouteOut
 from app.core.security import require_role
+from app.services.route_service import (
+    start_route,
+    bus_arrived_uce,
+    traffic_detected
+)
 
 router = APIRouter()
 
@@ -64,3 +69,16 @@ def delete_route(
 
     route.active = False
     db.commit()
+
+
+@router.post("/{route_id}/start")
+def start_route_endpoint(route_id: str):
+    return start_route(route_id, "driver-001", "bus-101")
+
+@router.post("/{route_id}/arrived-uce")
+def arrived_uce_endpoint(route_id: str):
+    return bus_arrived_uce(route_id, "driver-001", "bus-101")
+
+@router.post("/{route_id}/traffic")
+def traffic_endpoint(route_id: str, delay_minutes: int):
+    return traffic_detected(route_id, "driver-001", "bus-101", delay_minutes)

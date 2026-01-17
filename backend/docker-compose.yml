@@ -179,8 +179,11 @@ services:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_route
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ISSUER: uce-safe-ride
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
       postgres:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     ports:
       - "8003:8000"
@@ -218,7 +221,7 @@ services:
       MONGO_URI: mongodb://mongo:27017
       MONGO_DB: notification_db
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_TOPICS: route.started,bus.near_stop,payment.completed
+      KAFKA_TOPICS: route.started,bus.near_stop,payment.completed,route.traffic_detected,bus.arrived_uce
     depends_on:
       kafka:
         condition: service_healthy
