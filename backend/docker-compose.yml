@@ -250,7 +250,11 @@ services:
       MONGO_DB: notification_db
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPICS: route.started,bus.near_stop,payment.completed,route.traffic_detected,bus.arrived_uce
-      RABBITMQ_URL: amqp://uce:uce123@rabbitmq:5672/
+    
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: uce
+      RABBITMQ_PASSWORD: uce123
+      
     depends_on:
       kafka:
         condition: service_healthy
@@ -275,6 +279,8 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
       RABBITMQ_PASSWORD: uce123
+
+      PYTHONUNBUFFERED: 1
     depends_on:
       rabbitmq:
         condition: service_healthy

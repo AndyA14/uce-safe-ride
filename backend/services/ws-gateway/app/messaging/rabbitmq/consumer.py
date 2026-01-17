@@ -34,30 +34,36 @@ def start_rabbit_consumer(loop: asyncio.AbstractEventLoop, stop_event):
 
             result = channel.queue_declare(queue="", exclusive=True)
             queue_name = result.method.queue
-
             channel.queue_bind(
                 exchange="notifications.exchange",
                 queue=queue_name,
-                routing_key="bus.*"
+                routing_key="#"
             )
+            # -----------------------
 
-            print("🐰 RabbitMQ consumer started and waiting for messages")
+            print(f"🐰 RabbitMQ consumer started on queue {queue_name} binding to '#'")
 
             def callback(ch, method, properties, body):
-                event = json.loads(body)
-                student_id = event.get("student_id")
+                try:
+                    event = json.loads(body)
+                    print(f"📩 WS Gateway received: {method.routing_key} -> {event}")
+                    
+                    student_id = event.get("student_id")
 
-                if student_id:
-                    asyncio.run_coroutine_threadsafe(
-                        manager.send_to_student(student_id, event),
-                        loop
-                    )
+                    if student_id:
+                        asyncio.run_coroutine_threadsafe(
+                            manager.send_to_student(student_id, event),
+                            loop
+                        )
+                except Exception as e:
+                    print(f"❌ Error decoding message in WS Gateway: {e}")
 
             channel.basic_consume(
                 queue=queue_name,
                 on_message_callback=callback,
                 auto_ack=True
             )
+            
             while not stop_event.is_set():
                 connection.process_data_events(time_limit=1)
 

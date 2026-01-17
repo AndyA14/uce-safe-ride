@@ -19,3 +19,7 @@ KAFKA_TOPICS = os.getenv(
     "KAFKA_TOPICS",
     "route.started,bus.near_stop,payment.completed"
 ).split(",")
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
