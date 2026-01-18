@@ -7,8 +7,9 @@ from app.websocket.manager import manager
 from app.messaging.rabbitmq.thread import start_consumer, stop_consumer
 from app.core.jwt import decode_token 
 from app.websocket.dependencies import get_current_user
+from fastapi.concurrency import run_in_threadpool  
+from app.messaging.rabbitmq.producer import publish_event  
 
-# Contexto de vida útil de la aplicación, que arranca y detiene el consumidor de RabbitMQ.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Iniciando WebSocket Gateway con Seguridad JWT...")
@@ -17,7 +18,6 @@ async def lifespan(app: FastAPI):
     yield
     stop_consumer()
 
-# Creamos la aplicación FastAPI con el contexto de vida útil
 app = FastAPI(
     title="WebSocket Gateway",
     lifespan=lifespan
@@ -74,6 +74,24 @@ async def websocket_endpoint(
                             "type": "unsubscription.success", 
                             "topic": topic
                         })
+                elif action == "publish":
+                    # Validamos rol por seguridad (solo conductores pueden publicar)
+                    if user.get("role") != "DRIVER":
+                        print(f"⛔ Intento de publicación no autorizado: {student_id}")
+                        continue
+
+                    routing_key = data.get("routing_key", "route.update")
+                    payload = data.get("payload", {})
+                    
+                    # Inyectamos datos de confianza (quién lo envía)
+                    payload["driver_id"] = student_id
+                    
+                    # Ejecutamos el envío a RabbitMQ en un hilo aparte para no bloquear el WS
+                    await run_in_threadpool(publish_event, routing_key, payload)
+                    await websocket.send_json({
+                        "type": "publish.success", 
+                        "message": "Evento publicado con éxito"
+                    })
 
             except json.JSONDecodeError:
                 # Si no podemos parsear el mensaje, lo ignoramos.

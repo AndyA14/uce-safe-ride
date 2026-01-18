@@ -52,7 +52,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
       }
 
       if (user.role === 'STUDENT') navigate('/student/dashboard');
-      else if (user.role === 'DRIVER') navigate('/driver/profile');
+      else if (user.role === 'DRIVER') navigate('/driver/dashboard');
       else navigate('/');
 
       onClose();

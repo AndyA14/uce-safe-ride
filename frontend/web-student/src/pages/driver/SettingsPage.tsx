@@ -1,149 +1,73 @@
-/**
- * Driver Settings Page
- * Manage notifications and app preferences
- */
-
-import React from 'react';
-import { Settings, Bell, Moon, Globe, Shield, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Truck, Moon, Sun, Shield } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const SettingsPage: React.FC = () => {
-  const notificationSettings = [
-    { id: 'trip_reminders', label: 'Recordatorios de viajes', description: 'Notificaciones antes de cada viaje', enabled: true },
-    { id: 'passenger_updates', label: 'Actualizaciones de pasajeros', description: 'Avisos sobre solicitudes de parada', enabled: true },
-    { id: 'system_updates', label: 'Actualizaciones del sistema', description: 'Noticias y cambios importantes', enabled: false },
-  ];
+  const [darkMode, setDarkMode] = useState(false);
 
-  const appSettings = [
-    { id: 'dark_mode', label: 'Modo oscuro', description: 'Tema oscuro para la aplicación', icon: Moon, enabled: false },
-    { id: 'language', label: 'Idioma', description: 'Español (Ecuador)', icon: Globe, value: 'es-EC' },
-  ];
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setDarkMode(isDark);
+  }, []);
+
+  const toggleDarkMode = (checked: boolean) => {
+    setDarkMode(checked);
+    document.documentElement.classList.toggle('dark', checked);
+  };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Settings className="w-6 h-6 text-primary" />
-          Configuración
-        </h1>
-        <p className="text-muted-foreground">Personaliza tu experiencia en la aplicación</p>
+    // 🎨 FONDO SLATE-200
+    <div className="min-h-screen bg-slate-200 dark:bg-slate-950 text-slate-900 dark:text-slate-200 p-8 md:p-12 animate-fade-in transition-colors duration-300">
+      
+      {/* 📏 CONTENEDOR ANGOSTO CENTRADO (max-w-4xl) */}
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        <div className="mb-2">
+          <h1 className="text-3xl font-bold flex items-center gap-3 text-slate-900 dark:text-white">
+            <Settings className="w-8 h-8 text-slate-500" /> Configuración
+          </h1>
+        </div>
+
+        {/* Tarjetas BLANCAS sobre fondo GRIS */}
+        <Card className="border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <CardHeader className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-white">
+              <Truck className="w-5 h-5 text-[#FFC107]" /> Preferencias de Viaje
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-base font-bold text-slate-900 dark:text-white">Auto-aceptar rutas</Label>
+                <p className="text-sm text-slate-500">Asignar rutas automáticamente al iniciar turno.</p>
+              </div>
+              <Switch defaultChecked />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Apariencia */}
+        <Card className="border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
+             <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-white">
+                {darkMode ? <Moon className="w-5 h-5 text-[#FFC107]" /> : <Sun className="w-5 h-5 text-orange-500" />} Apariencia
+             </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-base font-bold text-slate-900 dark:text-white">Modo Oscuro</Label>
+                <p className="text-sm text-slate-500">Cambiar interfaz a tema nocturno.</p>
+              </div>
+              <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Bell className="w-5 h-5 text-primary" />
-            Notificaciones
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {notificationSettings.map((setting) => (
-            <div key={setting.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-              <div>
-                <p className="font-medium">{setting.label}</p>
-                <p className="text-sm text-muted-foreground">{setting.description}</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  defaultChecked={setting.enabled}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* App Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Preferencias de la Aplicación</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {appSettings.map((setting) => (
-            <div key={setting.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-              <div className="flex items-center gap-3">
-                <setting.icon className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">{setting.label}</p>
-                  <p className="text-sm text-muted-foreground">{setting.description}</p>
-                </div>
-              </div>
-              {setting.id === 'dark_mode' ? (
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    defaultChecked={setting.enabled}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              ) : (
-                <Button variant="outline" size="sm">
-                  Cambiar
-                </Button>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Security & Privacy */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            Seguridad y Privacidad
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full justify-start">
-            Cambiar contraseña
-          </Button>
-          <Button variant="outline" className="w-full justify-start">
-            Ver política de privacidad
-          </Button>
-          <Button variant="outline" className="w-full justify-start">
-            Términos y condiciones
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Help & Support */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-primary" />
-            Ayuda y Soporte
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full justify-start">
-            Centro de ayuda
-          </Button>
-          <Button variant="outline" className="w-full justify-start">
-            Contactar soporte
-          </Button>
-          <Button variant="outline" className="w-full justify-start">
-            Reportar un problema
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* App Info */}
-      <Card>
-        <CardContent className="p-4 text-center text-sm text-muted-foreground">
-          <p>UCE Safe Ride - Versión Conductor 1.0.0</p>
-          <p className="mt-1">© 2024 Universidad Central del Ecuador</p>
-        </CardContent>
-      </Card>
     </div>
   );
 };
-
 export default SettingsPage;

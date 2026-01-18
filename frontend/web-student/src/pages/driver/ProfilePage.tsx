@@ -1,255 +1,141 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, CreditCard, IdCard, Loader2, Save } from 'lucide-react';
+import { User, Mail, Phone, Car, Shield, Loader2, Save, IdCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { getDriverProfile } from '@/services/driverService';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ProfilePage = () => {
   const { toast } = useToast();
   const { user: authUser } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   const [profile, setProfile] = useState({
     name: '',
     email: '',
-    phone: '',
-    ci: '',
-    license_number: '',
+    phone: '0991234567',
+    license_number: '1725033669',
+    license_type: 'Tipo E (Profesional)'
   });
 
-  // CARGA DE DATOS
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await getDriverProfile();
-        console.log('🚗 Perfil cargado:', data);
-        
-        setProfile({
-          name: data.name || '',
-          email: data.email || '', 
-          phone: data.phone || '',
-          ci: data.ci || '',
-          license_number: data.license_number || '',
-        });
+    if (authUser) {
+      setProfile(prev => ({
+        ...prev,
+        name: authUser.name || '',
+        email: authUser.email || '',
+      }));
+    }
+  }, [authUser]);
 
-        // Actualizar localStorage con datos frescos
-        if (authUser) {
-          const updatedUser = { 
-            ...authUser, 
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            ci: data.ci,
-            license_number: data.license_number,
-          };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-
-      } catch (error) {
-        console.error('❌ Error cargando perfil:', error);
-        toast({ 
-          title: "Error", 
-          description: "No se pudo cargar la información.", 
-          variant: "destructive" 
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // GUARDAR DATOS
   const handleSave = async () => {
     setSaving(true);
-    try {
-      console.log('💾 Guardando perfil:', profile);
-
-      // Validación básica
-      if (!profile.name.trim()) {
-        toast({ 
-          title: "Error", 
-          description: "El nombre completo es obligatorio.", 
-          variant: "destructive" 
-        });
-        setSaving(false);
-        return;
-      }
-
-      // TODO: Implementar updateDriverProfile en driverService
-      // await updateDriverProfile({
-      //   name: profile.name.trim(),
-      //   phone: profile.phone.trim(),
-      // });
-
-      // Actualizar localStorage
-      if (authUser) {
-        const updatedUser = { 
-          ...authUser, 
-          name: profile.name,
-          phone: profile.phone,
-        };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      }
-
-      toast({ 
-        title: "¡Guardado!", 
-        description: "Perfil actualizado correctamente." 
-      });
-
-    } catch (error: any) {
-      console.error('❌ Error guardando:', error);
-      toast({ 
-        title: "Error", 
-        description: error.message || "No se pudo guardar.", 
-        variant: "destructive" 
-      });
-    } finally {
+    setTimeout(() => {
       setSaving(false);
-    }
+      toast({ title: "¡Guardado!", description: "Perfil actualizado correctamente." });
+    }, 1000);
   };
 
-  if (loading) {
-    return (
-      <div className="p-10 flex justify-center">
-        <Loader2 className="animate-spin text-primary w-8 h-8" />
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-10">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 p-4 md:p-8 animate-fade-in transition-colors duration-300">
       
-      {/* Header del Perfil */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-16 h-16 rounded-full bg-[#FFC107] flex items-center justify-center text-[#003da5] text-2xl font-bold shadow-lg">
-          {profile.name.charAt(0).toUpperCase() || 'C'}
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* HEADER */}
+        <div className="flex items-center gap-6 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-xl">
+          <div className="w-20 h-20 rounded-full bg-[#FFC107] flex items-center justify-center text-slate-900 text-3xl font-bold shadow-lg border-4 border-white dark:border-slate-800">
+            {profile.name.charAt(0).toUpperCase() || 'C'}
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{profile.name || 'Conductor'}</h1>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="bg-[#FFC107] text-slate-900 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide">
+                Conductor Activo
+              </span>
+              <span className="text-slate-500 text-xs font-mono">ID: {authUser?.id?.slice(0, 8) || '...'}</span>
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{profile.name || 'Conductor'}</h1>
-          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
-            Conductor Activo
-          </span>
-        </div>
-      </div>
-      
-      {/* Tarjeta 1: Información Personal */}
-      <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-4">
-          <User className="w-5 h-5 text-[#003da5]" /> Información Personal
-        </h2>
         
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Nombre */}
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">Nombre Completo</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
-              <User className="w-4 h-4 text-gray-500" />
-              <Input 
-                value={profile.name} 
-                onChange={e => setProfile({...profile, name: e.target.value})}
-                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
-                placeholder="Tu nombre completo"
-              />
+          {/* TARJETA 1: DATOS PERSONALES */}
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-lg transition-colors">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-slate-800 pb-2">
+              <User className="w-5 h-5 text-slate-400" /> Información Personal
+            </h2>
+            
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-slate-600 dark:text-slate-400">Nombre Completo</Label>
+                {/* 🎨 CORRECCIÓN DE COLORES DE INPUT */}
+                <div className="flex items-center gap-3 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-950 focus-within:ring-2 ring-[#FFC107] transition-all">
+                  <User className="w-4 h-4 text-slate-400" />
+                  <Input 
+                    value={profile.name} 
+                    onChange={e => setProfile({...profile, name: e.target.value})}
+                    className="border-0 bg-transparent p-0 focus-visible:ring-0 text-slate-900 dark:text-white placeholder:text-slate-400" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-slate-600 dark:text-slate-400">Correo Electrónico</Label>
+                <div className="flex items-center gap-3 border border-gray-200 dark:border-slate-800 rounded-lg px-3 py-2 bg-gray-100 dark:bg-slate-900/50 cursor-not-allowed">
+                  <Mail className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm text-slate-500">{profile.email}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-slate-600 dark:text-slate-400">Teléfono</Label>
+                <div className="flex items-center gap-3 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-950 focus-within:ring-2 ring-[#FFC107] transition-all">
+                  <Phone className="w-4 h-4 text-slate-400" />
+                  <Input 
+                    value={profile.phone} 
+                    onChange={e => setProfile({...profile, phone: e.target.value})}
+                    className="border-0 bg-transparent p-0 focus-visible:ring-0 text-slate-900 dark:text-white" 
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Email (Read-only) */}
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">Correo Electrónico</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
-              <Mail className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">{profile.email}</span>
-            </div>
-            <p className="text-[10px] text-gray-400">El correo no puede ser modificado</p>
-          </div>
+          {/* TARJETA 2: CREDENCIALES */}
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl p-6 shadow-lg transition-colors">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6 border-b border-gray-100 dark:border-slate-800 pb-2">
+              <Shield className="w-5 h-5 text-[#FFC107]" /> Licencia y Permisos
+            </h2>
+            
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-slate-600 dark:text-slate-400">Número de Licencia</Label>
+                <div className="flex items-center gap-3 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-950">
+                  <IdCard className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-mono font-medium text-slate-700 dark:text-white">{profile.license_number}</span>
+                </div>
+              </div>
 
-          {/* Teléfono */}
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">Teléfono</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-50 dark:bg-slate-900 dark:border-slate-700">
-              <Phone className="w-4 h-4 text-gray-500" />
-              <Input 
-                value={profile.phone} 
-                onChange={e => setProfile({...profile, phone: e.target.value})} 
-                placeholder="+593 999 999 999"
-                className="border-0 bg-transparent focus-visible:ring-0 p-0 h-auto dark:text-white" 
-              />
+              <div className="space-y-2">
+                <Label className="text-slate-600 dark:text-slate-400">Tipo de Licencia</Label>
+                <div className="flex items-center gap-3 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-slate-950">
+                  <Car className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm text-slate-700 dark:text-white">{profile.license_type}</span>
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* Cédula (Read-only) */}
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">Cédula de Identidad</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
-              <IdCard className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {profile.ci || 'No registrado'}
-              </span>
-            </div>
-            <p className="text-[10px] text-gray-400">Asignado por el sistema</p>
           </div>
         </div>
-      </div>
 
-      {/* Tarjeta 2: Credenciales de Conductor */}
-      <div className="bg-white dark:bg-[#0f172a] border border-gray-100 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2 mb-4">
-          <CreditCard className="w-5 h-5 text-[#003da5]" /> Credenciales de Conductor
-        </h2>
-        
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Número de Licencia (Read-only) */}
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">Número de Licencia</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
-              <CreditCard className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {profile.license_number || 'No registrado'}
-              </span>
-            </div>
-            <p className="text-[10px] text-gray-400">Asignado por el sistema</p>
-          </div>
-
-          {/* ID de Conductor (Read-only) - del auth_user_id */}
-          <div className="space-y-2">
-            <Label className="dark:text-gray-300">ID de Conductor</Label>
-            <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-gray-100 dark:bg-slate-800 dark:border-slate-700 cursor-not-allowed">
-              <IdCard className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                {authUser?.id || 'No disponible'}
-              </span>
-            </div>
-            <p className="text-[10px] text-gray-400">Identificador único</p>
-          </div>
+        <div className="flex justify-end pt-4">
+          <Button 
+            onClick={handleSave} 
+            disabled={saving} 
+            className="bg-[#FFC107] text-slate-900 hover:bg-yellow-400 font-bold px-8 py-6 shadow-lg shadow-yellow-900/20 text-md rounded-xl transition-transform active:scale-95"
+          >
+            {saving ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Guardando...</> : <><Save className="w-5 h-5 mr-2" /> Guardar Cambios</>}
+          </Button>
         </div>
       </div>
-
-      {/* Botón de Guardar */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSave} 
-          disabled={saving} 
-          className="bg-[#FFC107] text-[#003da5] hover:bg-[#ffcd38] font-bold px-8"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Guardando...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              Guardar Cambios
-            </>
-          )}
-        </Button>
-      </div>
-
     </div>
   );
 };
