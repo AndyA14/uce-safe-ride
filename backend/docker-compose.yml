@@ -283,8 +283,8 @@ services:
       - uce-net
     restart: unless-stopped
 
-  # ==================================================
-  # WS GATEWAY
+# ==================================================
+  # WS GATEWAY 
   # ==================================================
   ws-gateway:
     build:
@@ -294,7 +294,7 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
       RABBITMQ_PASSWORD: uce123
-      REDIS_HOST: redis  # Aquí agregas la variable de entorno para Redis
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       PYTHONUNBUFFERED: 1
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
@@ -303,9 +303,50 @@ services:
       rabbitmq:
         condition: service_healthy
       redis:
-        condition: service_healthy  # Asegúrate de que Redis esté disponible antes de iniciar
+        condition: service_healthy
     ports:
       - "8009:8000"
+    networks:
+      - uce-net
+    restart: unless-stopped
+
+  # ==================================================
+  # TRIP SERVICE 
+  # ==================================================
+  trip-service:
+    build: 
+      context: .
+      dockerfile: services/trip-service/Dockerfile
+    container_name: trip-service
+    ports:
+      - "8010:8000"
+    environment:
+      # Base de Datos
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/uce_trip
+      
+      # Seguridad
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=HS256
+      
+      # Event Bus 
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=uce
+      - RABBITMQ_PASSWORD=uce123
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092 
+      - KAFKA_ENABLED=true
+      
+      - ROUTE_SERVICE_URL=http://route-service:8003
+      - DRIVER_SERVICE_URL=http://driver-service:8005
+      - VEHICLE_SERVICE_URL=http://vehicle-service:8004
+      - STUDENT_SERVICE_URL=http://student-service:8002
+      - STOP_SERVICE_URL=http://stop-service:8007
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      kafka: 
+        condition: service_healthy
     networks:
       - uce-net
     restart: unless-stopped
