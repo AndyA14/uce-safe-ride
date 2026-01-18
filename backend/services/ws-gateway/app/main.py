@@ -1,113 +1,84 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
-from fastapi.exceptions import WebSocketException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 import asyncio
-import json
 from contextlib import asynccontextmanager
+from fastapi.concurrency import run_in_threadpool
+
 from app.websocket.manager import manager
-from app.messaging.rabbitmq.thread import start_consumer, stop_consumer
-from app.core.jwt import decode_token 
-from app.websocket.dependencies import get_current_user
-from fastapi.concurrency import run_in_threadpool  
-from app.messaging.rabbitmq.producer import publish_event  
+from app.messaging.rabbitmq.producer import publish_event
+from app.websocket.redis_listener import redis_listener
+from app.core.jwt import decode_token
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Iniciando WebSocket Gateway con Seguridad JWT...")
-    loop = asyncio.get_running_loop()
-    start_consumer(loop)
-    yield
-    stop_consumer()
+    print("🚀 Iniciando WebSocket Gateway + Redis")
+    task = asyncio.create_task(redis_listener())
+    try:
+        yield
+    finally:
+        task.cancel()
 
 app = FastAPI(
     title="WebSocket Gateway",
     lifespan=lifespan
 )
 
-# Endpoint de WebSocket para manejar conexiones
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    user: dict = Depends(get_current_user)
-):
-    if user is None:
-        await websocket.close(code=1008)  # Cerrar conexión si el usuario no es válido.
+async def websocket_endpoint(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
-    
-    student_id = user.get("sub")
-    print(f"Conexión aceptada para estudiante real: {student_id}")
-    
-    # Aceptamos la conexión WebSocket
+
+    try:
+        user = decode_token(token)
+    except Exception:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    user_id = user.get("sub")
+    role = user.get("role")
+
+    if not user_id or not role:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
-    await manager.connect(student_id, websocket)
+    await manager.connect(user_id, websocket, route_id)
     
-    # Enviamos un mensaje de bienvenida
-    await websocket.send_json({
-        "type": "connection.established", 
-        "message": "Conectado al Gateway"
-    })
+    print(f"🟢 WS conectado → user={user_id}, role={role}")
 
     try:
         while True:
-            # Recibimos mensaje del cliente (Frontend)
-            data_text = await websocket.receive_text()
-            
-            try:
-                data = json.loads(data_text)
-                action = data.get("action")
-                
-                # Lógica de suscripción
-                if action == "subscribe":
-                    topic = data.get("topic")  # Ej: "route-123" o "bus-55"
-                    if topic:
-                        await manager.subscribe(student_id, topic)
-                        await websocket.send_json({
-                            "type": "subscription.success", 
-                            "topic": topic
-                        })
-                
-                # Lógica de desuscripción
-                elif action == "unsubscribe":
-                    topic = data.get("topic")
-                    if topic:
-                        await manager.unsubscribe(student_id, topic)
-                        await websocket.send_json({
-                            "type": "unsubscription.success", 
-                            "topic": topic
-                        })
-                elif action == "publish":
-                    # Validamos rol por seguridad (solo conductores pueden publicar)
-                    if user.get("role") != "DRIVER":
-                        print(f"⛔ Intento de publicación no autorizado: {student_id}")
-                        continue
+            data = await websocket.receive_json()
+            action = data.get("action")
 
-                    routing_key = data.get("routing_key", "route.update")
-                    payload = data.get("payload", {})
-                    
-                    # Inyectamos datos de confianza (quién lo envía)
-                    payload["driver_id"] = student_id
-                    
-                    # Ejecutamos el envío a RabbitMQ en un hilo aparte para no bloquear el WS
-                    await run_in_threadpool(publish_event, routing_key, payload)
-                    await websocket.send_json({
-                        "type": "publish.success", 
-                        "message": "Evento publicado con éxito"
-                    })
+            # 🟢 SUBSCRIBE explícito
+            if action == "subscribe":
+                route_id = data.get("route_id")
+                if not route_id:
+                    continue
 
-            except json.JSONDecodeError:
-                # Si no podemos parsear el mensaje, lo ignoramos.
-                print("Mensaje no válido recibido")
-                continue
+                await manager.subscribe(user_id, route_id)
+                await websocket.send_json({
+                    "type": "subscription.success",
+                    "route_id": route_id
+                })
+
+            # 🚌 DRIVER publica
+            elif action == "publish":
+                if role != "DRIVER":
+                    continue
+
+                payload = data.get("payload", {})
+                payload["driver_id"] = user_id
+
+                await run_in_threadpool(
+                    publish_event,
+                    data.get("routing_key", "route.event"),
+                    payload
+                )
 
     except WebSocketDisconnect:
-        # Manejo de desconexión
-        print(f"WebSocket desconectado para el estudiante: {student_id}")
-        await manager.disconnect(student_id, websocket)
-    
-    except Exception as e:
-        # Manejo de errores inesperados
-        print(f"Error en WebSocket: {e}")
-        await manager.disconnect(student_id, websocket)
-
-@app.get("/")
-async def root():
-    return {"message": "Secure WebSocket Gateway is running"}
+        await manager.disconnect(user_id, websocket)
+        print(f"🔴 WS desconectado → {user_id}")

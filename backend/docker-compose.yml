@@ -113,7 +113,22 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
-
+  # ==================================================
+  # REDIS
+  # ==================================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - uce-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   # ==================================================
   # AUTH SERVICE
   # ==================================================
@@ -279,14 +294,16 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
       RABBITMQ_PASSWORD: uce123
-
+      REDIS_HOST: redis  # Aquí agregas la variable de entorno para Redis
+      REDIS_PORT: 6379
       PYTHONUNBUFFERED: 1
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ALGORITHM: HS256
-
     depends_on:
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy  # Asegúrate de que Redis esté disponible antes de iniciar
     ports:
       - "8009:8000"
     networks:

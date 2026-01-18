@@ -7,6 +7,7 @@ from app.db.models import Route
 from app.schemas.routes import RouteCreateIn, RouteUpdateIn, RouteOut
 from app.core.security import require_role
 from app.services.route_service import (
+    get_active_route_for_user,
     start_route,
     bus_arrived_uce,
     traffic_detected
@@ -29,6 +30,36 @@ def create_route(
 @router.get("", response_model=list[RouteOut])
 def list_routes(db: Session = Depends(get_db)):
     return db.query(Route).filter(Route.active.is_(True)).all()
+
+
+
+@router.get("/active/me", response_model=RouteOut)
+def get_my_active_route(
+    user: dict = Depends(require_role("STUDENT", "DRIVER")),
+    db: Session = Depends(get_db),
+):
+    user_id = user.get("sub") or user.get("id") or user.get("user_id")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload: user id missing"
+        )
+
+    route = get_active_route_for_user(
+        user_id=user_id,
+        role=user["role"],
+        db=db
+    )
+
+    if not route:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active route for this user"
+        )
+
+    return route
+
 
 
 @router.get("/{route_id}", response_model=RouteOut)
@@ -69,6 +100,7 @@ def delete_route(
 
     route.active = False
     db.commit()
+
 
 
 @router.post("/{route_id}/start")

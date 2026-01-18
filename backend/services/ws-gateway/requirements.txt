@@ -4,3 +4,5 @@ pika
 uvicorn[standard]
 python-jose[cryptography]
 pydantic-settings
+httpx
+redis
