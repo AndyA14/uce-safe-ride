@@ -349,3 +349,28 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
+
+# ==================================================
+  # TRACKING SERVICE (MongoDB)
+  # ==================================================
+  tracking-service:
+    build:
+      context: .
+      dockerfile: services/tracking-service/Dockerfile
+    container_name: tracking-service
+    ports:
+      - "8006:8000"  
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: tracking_db
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_TRIPS: trips
+      KAFKA_GROUP_ID: tracking_group
+    depends_on:
+      mongo:
+        condition: service_healthy 
+      kafka:
+        condition: service_healthy 
+    networks:
+      - uce-net 
+    restart: unless-stopped

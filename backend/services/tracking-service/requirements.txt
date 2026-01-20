@@ -1,6 +1,8 @@
 fastapi
 uvicorn
-sqlalchemy
-psycopg2-binary
 pydantic
-python-jose
+pydantic-settings
+motor
+aiokafka
+python-multipart
+email-validator
