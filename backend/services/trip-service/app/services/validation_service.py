@@ -1,12 +1,7 @@
-"""
-Servicio para validar datos con servicios externos.
-Implementa circuit breaker y retry logic para resiliencia.
-"""
 import httpx
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
-
+from datetime import datetime
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceException, ValidationException
 
@@ -14,336 +9,282 @@ logger = logging.getLogger(__name__)
 
 
 class ValidationService:
-    """
-    Servicio para validar entidades en servicios externos.
-    
-    Implementa:
-    - Validación de Route, Driver, Vehicle, Student, Stop
-    - Circuit breaker básico (opcional, mejora futura)
-    - Timeout configurable
-    - Logging detallado de errores
-    """
-    
+
     def __init__(self):
         self.timeout = settings.EXTERNAL_SERVICE_TIMEOUT
+
         self.route_service_url = settings.ROUTE_SERVICE_URL
         self.driver_service_url = settings.DRIVER_SERVICE_URL
         self.vehicle_service_url = settings.VEHICLE_SERVICE_URL
         self.student_service_url = settings.STUDENT_SERVICE_URL
         self.stop_service_url = settings.STOP_SERVICE_URL
-    
     async def _make_request(
         self,
         url: str,
         service_name: str,
+        token: Optional[str] = None,
         method: str = "GET",
         **kwargs
     ) -> Optional[Dict[str, Any]]:
-        """
-        Método interno para hacer requests HTTP con manejo de errores.
-        
-        Args:
-            url: URL completa del endpoint
-            service_name: Nombre del servicio (para logging)
-            method: Método HTTP (GET, POST, etc.)
-            **kwargs: Argumentos adicionales para httpx
-        
-        Returns:
-            Response JSON si exitoso, None si falla
-        
-        Raises:
-            ExternalServiceException si el servicio no responde
-        """
+        headers = kwargs.pop("headers", {})
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.request(method, url, **kwargs)
-                
+                response = await client.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    **kwargs
+                )
+
                 if response.status_code == 200:
                     return response.json()
-                elif response.status_code == 404:
-                    logger.warning(f"{service_name}: Recurso no encontrado en {url}")
+
+                if response.status_code == 404:
+                    logger.warning(
+                        f"{service_name}: recurso no encontrado ({url})"
+                    )
                     return None
-                else:
-                    logger.error(
-                        f"{service_name}: Error {response.status_code} en {url}"
+
+                if response.status_code == 403:
+                    raise ValidationException(
+                        f"Acceso denegado por {service_name}"
                     )
-                    raise ExternalServiceException(
-                        service_name,
-                        f"HTTP {response.status_code}"
-                    )
-                    
+
+                logger.error(
+                    f"{service_name}: HTTP {response.status_code} ({url})"
+                )
+                raise ExternalServiceException(
+                    service_name,
+                    f"HTTP {response.status_code}"
+                )
+
         except httpx.TimeoutException:
-            logger.error(f"{service_name}: Timeout conectando a {url}")
+            logger.error(f"{service_name}: timeout conectando a {url}")
             raise ExternalServiceException(
                 service_name,
                 f"Timeout después de {self.timeout}s"
             )
+
         except httpx.RequestError as e:
-            logger.error(f"{service_name}: Error de conexión a {url}: {e}")
+            logger.error(f"{service_name}: error de conexión → {e}")
             raise ExternalServiceException(
                 service_name,
-                f"Error de conexión: {str(e)}"
+                "Error de conexión"
             )
-    
-    # ==================== Route Validation ====================
-    
-    async def validate_route_exists(self, route_id: int) -> bool:
-        """
-        Valida que una ruta exista y esté activa.
-        
-        Args:
-            route_id: ID de la ruta a validar
-        
-        Returns:
-            True si la ruta existe y está activa
-        
-        Raises:
-            ExternalServiceException si el servicio no responde
-            ValidationException si la ruta no existe o está inactiva
-        """
-        url = f"{self.route_service_url}/api/v1/routes/{route_id}"
-        
-        try:
-            route_data = await self._make_request(url, "Route Service")
-            
-            if not route_data:
-                raise ValidationException(f"La ruta {route_id} no existe")
-            
-            # Verificar que la ruta esté activa (si el campo existe)
-            if "is_active" in route_data and not route_data["is_active"]:
-                raise ValidationException(f"La ruta {route_id} está inactiva")
-            
-            logger.info(f"Ruta {route_id} validada exitosamente")
-            return True
-            
-        except ExternalServiceException:
-            # Re-raise si es error de servicio
-            raise
-        except Exception as e:
-            logger.error(f"Error validando ruta {route_id}: {e}")
-            raise ValidationException(f"Error validando ruta: {str(e)}")
-    
-    # ==================== Driver Validation ====================
-    
-    async def validate_driver_exists(self, driver_id: int) -> bool:
-        """
-        Valida que un conductor exista y esté disponible.
-        
-        Args:
-            driver_id: ID del conductor a validar
-        
-        Returns:
-            True si el conductor existe y está disponible
-        
-        Raises:
-            ExternalServiceException si el servicio no responde
-            ValidationException si el conductor no existe o no está disponible
-        """
+
+    async def get_driver_details(
+        self,
+        driver_id: str,
+        token: Optional[str] = None
+    ) -> Dict[str, Any]:
         url = f"{self.driver_service_url}/api/v1/drivers/{driver_id}"
         
-        try:
-            driver_data = await self._make_request(url, "Driver Service")
-            
-            if not driver_data:
-                raise ValidationException(f"El conductor {driver_id} no existe")
-            
-            # Verificar que el conductor esté activo
-            if not driver_data.get("is_active", False):
+        driver = await self._make_request(url, "Driver Service", token)
+        
+        if not driver:
+            raise ValidationException(
+                f"El conductor {driver_id} no existe en Driver Service"
+            )
+        
+        logger.info(
+            f"Driver {driver_id} obtenido: auth_user_id={driver.get('auth_user_id')}"
+        )
+        
+        return driver
+
+    # ==========================================================
+    # Route Validation
+    # ==========================================================
+
+    async def validate_route_exists(
+        self,
+        route_id: str,
+        token: Optional[str] = None
+    ) -> None:
+        url = f"{self.route_service_url}/api/v1/routes/{route_id}"
+        route = await self._make_request(url, "Route Service", token)
+
+        if not route:
+            raise ValidationException(f"La ruta {route_id} no existe")
+
+        if route.get("is_active") is False:
+            raise ValidationException(f"La ruta {route_id} está inactiva")
+
+        logger.info(f"Ruta {route_id} validada correctamente")
+
+    # ==========================================================
+    # Driver Validation
+    # ==========================================================
+
+    async def validate_driver_exists(
+        self,
+        driver_id: str,
+        token: Optional[str] = None
+    ) -> None:
+        """
+        Valida que un conductor exista y esté disponible.
+        """
+        # Reutilizar get_driver_details para evitar duplicación
+        driver = await self.get_driver_details(driver_id, token)
+
+        # Validar estado de la cuenta (administrativo)
+        if driver.get("is_active") is False:
+            raise ValidationException(
+                f"La cuenta del conductor {driver_id} está desactivada"
+            )
+
+        # VALIDACIÓN CLAVE: Estado operativo
+        current_status = driver.get("status", "UNKNOWN")
+
+        if current_status != "AVAILABLE":
+            raise ValidationException(
+                f"El conductor {driver_id} no está disponible para un nuevo viaje. "
+                f"Estado actual: {current_status}"
+            )
+
+        # Validar licencia (si aplica)
+        if driver.get("license_expiry"):
+            expiry_date = datetime.fromisoformat(
+                driver["license_expiry"].replace("Z", "+00:00")
+            )
+            if expiry_date < datetime.now(expiry_date.tzinfo):
                 raise ValidationException(
-                    f"El conductor {driver_id} no está activo"
+                    f"La licencia del conductor {driver_id} ha expirado"
                 )
-            
-            # Verificar licencia vigente (si el campo existe)
-            if "license_expiry" in driver_data:
-                expiry_date = datetime.fromisoformat(
-                    driver_data["license_expiry"].replace("Z", "+00:00")
-                )
-                if expiry_date < datetime.now(expiry_date.tzinfo):
-                    raise ValidationException(
-                        f"La licencia del conductor {driver_id} ha expirado"
-                    )
-            
-            logger.info(f"Conductor {driver_id} validado exitosamente")
-            return True
-            
-        except ExternalServiceException:
-            raise
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Error validando conductor {driver_id}: {e}")
-            raise ValidationException(f"Error validando conductor: {str(e)}")
-    
-    # ==================== Vehicle Validation ====================
-    
-    async def validate_vehicle_exists(self, vehicle_id: int) -> bool:
-        """
-        Valida que un vehículo exista y esté disponible.
-        
-        Args:
-            vehicle_id: ID del vehículo a validar
-        
-        Returns:
-            True si el vehículo existe y está disponible
-        
-        Raises:
-            ExternalServiceException si el servicio no responde
-            ValidationException si el vehículo no existe o no está disponible
-        """
+
+        logger.info(f"Conductor {driver_id} validado y disponible")
+
+    # ==========================================================
+    # Vehicle Validation
+    # ==========================================================
+
+    async def validate_vehicle_exists(
+        self,
+        vehicle_id: str,
+        token: Optional[str] = None
+    ) -> None:
         url = f"{self.vehicle_service_url}/api/v1/vehicles/{vehicle_id}"
-        
-        try:
-            vehicle_data = await self._make_request(url, "Vehicle Service")
-            
-            if not vehicle_data:
-                raise ValidationException(f"El vehículo {vehicle_id} no existe")
-            
-            # Verificar que el vehículo esté disponible
-            status = vehicle_data.get("status", "").lower()
-            if status not in ["available", "active"]:
-                raise ValidationException(
-                    f"El vehículo {vehicle_id} no está disponible (estado: {status})"
-                )
-            
-            # Verificar mantenimiento vigente (si el campo existe)
-            if "next_maintenance" in vehicle_data:
-                maintenance_date = datetime.fromisoformat(
-                    vehicle_data["next_maintenance"].replace("Z", "+00:00")
-                )
-                if maintenance_date < datetime.now(maintenance_date.tzinfo):
-                    logger.warning(
-                        f"Vehículo {vehicle_id} requiere mantenimiento"
-                    )
-            
-            logger.info(f"Vehículo {vehicle_id} validado exitosamente")
-            return True
-            
-        except ExternalServiceException:
-            raise
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Error validando vehículo {vehicle_id}: {e}")
-            raise ValidationException(f"Error validando vehículo: {str(e)}")
-    
-    # ==================== Student Validation ====================
-    
-    async def validate_student_exists(self, student_id: int) -> bool:
+        vehicle = await self._make_request(url, "Vehicle Service", token)
+
+        if not vehicle:
+            raise ValidationException(f"El vehículo {vehicle_id} no existe")
+
+        status = vehicle.get("status", "").lower()
+        if status not in {"available", "active"}:
+            raise ValidationException(
+                f"Vehículo {vehicle_id} no disponible (estado: {status})"
+            )
+
+        logger.info(f"Vehículo {vehicle_id} validado correctamente")
+
+    # ==========================================================
+    # Student Validation
+    # ==========================================================
+
+    async def validate_student_exists(
+        self,
+        student_id: str,
+        token: Optional[str] = None
+    ) -> None:
+        url = f"{self.student_service_url}/api/v1/students/{student_id}"
+        student = await self._make_request(url, "Student Service", token)
+
+        if not student:
+            raise ValidationException(f"El estudiante {student_id} no existe")
+
+        if not student.get("is_active", False):
+            raise ValidationException(
+                f"El estudiante {student_id} no está activo"
+            )
+
+        logger.info(f"Estudiante {student_id} validado correctamente")
+
+    async def get_student_details(
+        self,
+        student_id: str,
+        token: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Valida que un estudiante exista y esté activo.
+        Obtiene detalles completos de un estudiante.
+        
+        Similar a get_driver_details, retorna:
+        - id: UUID del perfil de estudiante
+        - auth_user_id: UUID del usuario en Auth Service
+        - is_active: bool
         
         Args:
-            student_id: ID del estudiante a validar
+            student_id: UUID del perfil de estudiante
+            token: Token JWT para autenticación
         
         Returns:
-            True si el estudiante existe y está activo
+            Dict completo del estudiante
         
         Raises:
-            ExternalServiceException si el servicio no responde
-            ValidationException si el estudiante no existe o no está activo
+            ValidationException si el estudiante no existe
         """
         url = f"{self.student_service_url}/api/v1/students/{student_id}"
         
-        try:
-            student_data = await self._make_request(url, "Student Service")
-            
-            if not student_data:
-                raise ValidationException(f"El estudiante {student_id} no existe")
-            
-            # Verificar que el estudiante esté activo
-            if not student_data.get("is_active", False):
-                raise ValidationException(
-                    f"El estudiante {student_id} no está activo"
-                )
-            
-            logger.info(f"Estudiante {student_id} validado exitosamente")
-            return True
-            
-        except ExternalServiceException:
-            raise
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Error validando estudiante {student_id}: {e}")
-            raise ValidationException(f"Error validando estudiante: {str(e)}")
-    
-    # ==================== Stop Validation ====================
-    
-    async def validate_stop_exists(self, stop_id: int, route_id: Optional[int] = None) -> bool:
-        """
-        Valida que una parada exista y, opcionalmente, pertenezca a una ruta.
+        student = await self._make_request(url, "Student Service", token)
         
-        Args:
-            stop_id: ID de la parada a validar
-            route_id: ID de la ruta (opcional, para validar pertenencia)
+        if not student:
+            raise ValidationException(
+                f"El estudiante {student_id} no existe en Student Service"
+            )
         
-        Returns:
-            True si la parada existe (y pertenece a la ruta si se especifica)
-        
-        Raises:
-            ExternalServiceException si el servicio no responde
-            ValidationException si la parada no existe o no pertenece a la ruta
-        """
-        url = f"{self.stop_service_url}/api/v1/stops/{stop_id}"
-        
-        try:
-            stop_data = await self._make_request(url, "Stop Service")
-            
-            if not stop_data:
-                raise ValidationException(f"La parada {stop_id} no existe")
-            
-            # Si se especifica route_id, verificar que la parada pertenezca a esa ruta
-            if route_id is not None:
-                stop_route_id = stop_data.get("route_id")
-                if stop_route_id != route_id:
-                    raise ValidationException(
-                        f"La parada {stop_id} no pertenece a la ruta {route_id}"
-                    )
-            
-            logger.info(f"Parada {stop_id} validada exitosamente")
-            return True
-            
-        except ExternalServiceException:
-            raise
-        except ValidationException:
-            raise
-        except Exception as e:
-            logger.error(f"Error validando parada {stop_id}: {e}")
-            raise ValidationException(f"Error validando parada: {str(e)}")
-    
-    # ==================== Batch Validation ====================
-    
-    async def validate_trip_creation(
-        self,
-        route_id: int,
-        driver_id: int,
-        vehicle_id: int
-    ) -> bool:
-        """
-        Valida todos los requisitos para crear un viaje.
-        
-        Args:
-            route_id: ID de la ruta
-            driver_id: ID del conductor
-            vehicle_id: ID del vehículo
-        
-        Returns:
-            True si todas las validaciones pasan
-        
-        Raises:
-            ValidationException si alguna validación falla
-            ExternalServiceException si algún servicio no responde
-        """
         logger.info(
-            f"Validando creación de viaje: route={route_id}, "
-            f"driver={driver_id}, vehicle={vehicle_id}"
+            f"Student {student_id} obtenido: auth_user_id={student.get('auth_user_id')}"
         )
         
-        # Validar en paralelo (opcional, para mejor performance)
-        # Por ahora, validamos secuencialmente
-        await self.validate_route_exists(route_id)
-        await self.validate_driver_exists(driver_id)
-        await self.validate_vehicle_exists(vehicle_id)
-        
-        logger.info("Todas las validaciones de creación de viaje pasaron")
-        return True
+        return student
+
+    # ==========================================================
+    # Stop Validation
+    # ==========================================================
+
+    async def validate_stop_exists(
+        self,
+        stop_id: str,
+        route_id: Optional[str] = None,
+        token: Optional[str] = None
+    ) -> None:
+        url = f"{self.stop_service_url}/api/v1/stops/{stop_id}"
+        stop = await self._make_request(url, "Stop Service", token)
+
+        if not stop:
+            raise ValidationException(f"La parada {stop_id} no existe")
+
+        if route_id and stop.get("route_id") != route_id:
+            raise ValidationException(
+                f"La parada {stop_id} no pertenece a la ruta {route_id}"
+            )
+
+        logger.info(f"Parada {stop_id} validada correctamente")
+
+    # ==========================================================
+    # Trip Creation Validation (Batch)
+    # ==========================================================
+
+    async def validate_trip_creation(
+        self,
+        route_id: str,
+        driver_id: str,
+        vehicle_id: str,
+        token: Optional[str] = None
+    ) -> None:
+        """
+        Valida todos los requisitos para crear un viaje.
+        Ejecuta validaciones en secuencia.
+        """
+        logger.info(
+            "Validando creación de viaje "
+            f"(route={route_id}, driver={driver_id}, vehicle={vehicle_id})"
+        )
+
+        await self.validate_route_exists(route_id, token)
+        await self.validate_driver_exists(driver_id, token)
+        await self.validate_vehicle_exists(vehicle_id, token)
+
+        logger.info("Validación de creación de viaje exitosa")

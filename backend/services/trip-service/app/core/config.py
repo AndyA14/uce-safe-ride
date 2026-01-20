@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
     
     # JWT
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = "super-secret-change-me"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
@@ -30,11 +30,12 @@ class Settings(BaseSettings):
     KAFKA_ENABLED: bool = True
     
     # External Services
-    ROUTE_SERVICE_URL: str = "http://route-service:8003"
-    DRIVER_SERVICE_URL: str = "http://driver-service:8005"
-    VEHICLE_SERVICE_URL: str = "http://vehicle-service:8004"
-    STUDENT_SERVICE_URL: str = "http://student-service:8002"
-    STOP_SERVICE_URL: str = "http://stop-service:8007"
+    AUTH_SERVICE_URL: str = "http://auth-service:8000"
+    ROUTE_SERVICE_URL: str = "http://route-service:8000"
+    DRIVER_SERVICE_URL: str = "http://driver-service:8000"
+    VEHICLE_SERVICE_URL: str = "http://vehicle-service:8000"
+    STUDENT_SERVICE_URL: str = "http://student-service:8000"
+    STOP_SERVICE_URL: str = "http://stop-service:8000"
     
     EXTERNAL_SERVICE_TIMEOUT: int = 5
     

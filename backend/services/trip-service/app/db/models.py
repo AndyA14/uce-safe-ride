@@ -31,10 +31,11 @@ class Trip(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
-    # Referencias a otros servicios
-    route_id = Column(Integer, nullable=False, index=True)
-    driver_id = Column(Integer, nullable=False, index=True)
-    vehicle_id = Column(Integer, nullable=False, index=True)
+  
+    route_id = Column(String, nullable=False, index=True)
+    driver_id = Column(String, nullable=False, index=True)
+    vehicle_id = Column(String, nullable=False, index=True)
+
     
     # Estado del viaje
     status = Column(
@@ -107,8 +108,10 @@ class TripPassenger(Base):
     
     # Referencias
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
-    student_id = Column(Integer, nullable=False, index=True)
-    stop_id = Column(Integer, nullable=False)  # Parada donde abordará/abordó
+    
+    student_id = Column(String, nullable=False, index=True)
+
+    stop_id = Column(Integer, nullable=False)  # Parada donde abordará/abordó (Asumimos ID numérico aquí)
     
     # Estado
     status = Column(

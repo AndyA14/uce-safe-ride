@@ -32,6 +32,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         user = decode_token(token)
+        if not user:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
     except Exception:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
@@ -42,9 +45,8 @@ async def websocket_endpoint(websocket: WebSocket):
     if not user_id or not role:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
-
     await websocket.accept()
-    await manager.connect(user_id, websocket, route_id)
+    await manager.connect(user_id, websocket)
     
     print(f"🟢 WS conectado → user={user_id}, role={role}")
 
@@ -64,10 +66,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     "type": "subscription.success",
                     "route_id": route_id
                 })
-
-            # 🚌 DRIVER publica
+            # 🚌 DRIVER publica ubicación
             elif action == "publish":
-                if role != "DRIVER":
+                if role != "DRIVER": 
                     continue
 
                 payload = data.get("payload", {})
@@ -80,5 +81,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
 
     except WebSocketDisconnect:
-        await manager.disconnect(user_id, websocket)
+        manager.disconnect(user_id)
         print(f"🔴 WS desconectado → {user_id}")
+        
+    except Exception as e:
+        print(f"❌ Error en WS: {e}")
+        manager.disconnect(user_id)

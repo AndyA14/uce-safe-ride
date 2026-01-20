@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -20,31 +20,29 @@ from app.api.v1.endpoints.dependencies import (
 
 router = APIRouter()
 
-
 @router.post(
     "/{trip_id}/passengers",
     response_model=TripPassengerResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Agregar pasajero a viaje",
-    description="Permite a un estudiante unirse a un viaje específico"
+    summary="Agregar pasajero a viaje"
 )
 async def add_passenger_to_trip(
     trip_id: int,
     passenger_data: TripPassengerCreate,
     passenger_service: PassengerService = Depends(get_passenger_service),
-    current_user: TokenData = Depends(get_current_student)
+    current_user: TokenData = Depends(get_current_student) # O get_current_user si quieres permitir drivers tambien
 ):
-    # Validar que el estudiante se esté agregando a sí mismo
-    if passenger_data.student_id != current_user.user_id:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo puedes agregarte a ti mismo a un viaje"
-        )
+    # MODO TESIS: Bypass de validación de identidad
+    # Permitimos agregar cualquier student_id sin importar quién seas
+    
+    # if passenger_data.student_id != current_user.user_id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Solo puedes agregarte a ti mismo a un viaje"
+    #     )
     
     passenger = passenger_service.add_passenger(trip_id, passenger_data)
     return TripPassengerResponse.model_validate(passenger)
-
 
 @router.get(
     "/{trip_id}/passengers",
@@ -58,31 +56,10 @@ async def list_trip_passengers(
 ):
     passengers = passenger_service.list_passengers(trip_id)
     
-    # Si es estudiante, verificar que esté en el viaje
-    if current_user.role == "student":
-        student_in_trip = any(p.student_id == current_user.user_id for p in passengers)
-        if not student_in_trip:
-            from fastapi import HTTPException
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes acceso a esta información"
-            )
-    
-    # Si es conductor, verificar que sea su viaje
-    if current_user.role == "driver":
-        from app.services.trip_service import TripService
-        trip_service = TripService(passenger_service.db)
-        trip = trip_service.get_trip(trip_id)
-        
-        if trip.driver_id != current_user.user_id:
-            from fastapi import HTTPException
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo puedes ver pasajeros de tus propios viajes"
-            )
+    # MODO TESIS: Ver todos los pasajeros sin restricciones estritas
+    # if current_user.role == "student": ...
     
     return [TripPassengerResponse.model_validate(p) for p in passengers]
-
 
 @router.get(
     "/{trip_id}/passengers/{passenger_id}",
@@ -95,19 +72,13 @@ async def get_passenger_detail(
     passenger_service: PassengerService = Depends(get_passenger_service),
     current_user: TokenData = Depends(get_current_user)
 ):
-    """Obtiene información detallada de un pasajero específico"""
     passenger = passenger_service.get_passenger(trip_id, passenger_id)
-    
-    # Validar permisos
-    if current_user.role == "student" and passenger.student_id != current_user.user_id:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permiso para ver este pasajero"
-        )
+    if not passenger:
+        raise HTTPException(status_code=404, detail="Pasajero no encontrado")
+        
+    # MODO TESIS: Sin restricción de permisos
     
     return TripPassengerResponse.model_validate(passenger)
-
 
 @router.patch(
     "/{trip_id}/passengers/{passenger_id}/board",
@@ -122,22 +93,15 @@ async def board_passenger(
     trip_service: TripService = Depends(get_trip_service),
     current_user: TokenData = Depends(get_current_driver)
 ):
-    """
-    Marca un pasajero como abordado.
-    Solo el conductor del viaje puede realizar esta acción.
-    """
     trip = trip_service.get_trip(trip_id)
-    
-    if trip.driver_id != current_user.user_id:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo el conductor del viaje puede marcar pasajeros como abordados"
-        )
+    if not trip:
+         raise HTTPException(status_code=404, detail="Viaje no encontrado")
+
+    # Validación básica de conductor (Bypass opcional si lo necesitas)
+    # if trip.driver_id != current_user.user_id: ...
     
     passenger = passenger_service.board_passenger(trip_id, passenger_id, board_data)
     return TripPassengerResponse.model_validate(passenger)
-
 
 @router.delete(
     "/{trip_id}/passengers/{passenger_id}",
@@ -152,29 +116,8 @@ async def remove_passenger_from_trip(
     trip_service: TripService = Depends(get_trip_service),
     current_user: TokenData = Depends(get_current_user)
 ):
-    passenger = passenger_service.get_passenger(trip_id, passenger_id)
-    
-    # Estudiantes solo pueden eliminarse a sí mismos
-    if current_user.role == "student" and passenger.student_id != current_user.user_id:
-        from fastapi import HTTPException
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo puedes eliminarte a ti mismo del viaje"
-        )
-    
-    # Conductores solo pueden eliminar de sus propios viajes
-    if current_user.role == "driver":
-        trip = trip_service.get_trip(trip_id)
-        
-        if trip.driver_id != current_user.user_id:
-            from fastapi import HTTPException
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo puedes eliminar pasajeros de tus propios viajes"
-            )
-    
+    # Bypass para permitir borrar libremente en demo
     passenger_service.remove_passenger(trip_id, passenger_id, reason)
-
 
 @router.get(
     "/students/me/trips",
@@ -182,10 +125,9 @@ async def remove_passenger_from_trip(
     summary="Obtener mis viajes como estudiante"
 )
 async def get_my_student_trips(
-    active_only: bool = Query(False, description="Solo viajes activos"),
+    active_only: bool = Query(False),
     passenger_service: PassengerService = Depends(get_passenger_service),
     current_user: TokenData = Depends(get_current_student)
 ):
     trips = passenger_service.get_student_trips(current_user.user_id, active_only)
     return [TripPassengerResponse.model_validate(t) for t in trips]
-

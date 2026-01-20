@@ -1,8 +1,7 @@
-# app/core/security.py
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from typing import Optional, List
+from typing import List
 from app.core.config import settings
 
 security = HTTPBearer()
@@ -10,7 +9,7 @@ security = HTTPBearer()
 
 class TokenData:
     """Datos extraídos del token JWT"""
-    def __init__(self, user_id: int, role: str, email: str):
+    def __init__(self, user_id: str, role: str, email: str):
         self.user_id = user_id
         self.role = role
         self.email = email
@@ -27,19 +26,22 @@ def decode_token(token: str) -> TokenData:
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM]
         )
-        
-        user_id: int = payload.get("sub")
+
+        user_id: str = payload.get("sub")
         role: str = payload.get("role")
         email: str = payload.get("email")
-        
+
         if user_id is None or role is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token inválido: datos incompletos"
             )
-        
-        return TokenData(user_id=int(user_id), role=role, email=email)
-        
+        return TokenData(
+            user_id=str(user_id),
+            role=role,
+            email=email
+        )
+
     except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -71,30 +73,28 @@ async def require_role(
     return current_user
 
 
-# Helpers específicos por rol
+# ============= Helpers específicos por rol =============
+
 async def get_current_driver(
     current_user: TokenData = Depends(get_current_user)
 ) -> TokenData:
-    """Verifica que el usuario sea conductor"""
-    if current_user.role != "driver":
+    """Verifica que el usuario sea conductor (ignorando mayúsculas)"""
+    if current_user.role.lower() != "driver":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo conductores pueden realizar esta acción"
         )
     return current_user
 
-
 async def get_current_student(
     current_user: TokenData = Depends(get_current_user)
 ) -> TokenData:
-    """Verifica que el usuario sea estudiante"""
-    if current_user.role != "student":
+    if current_user.role.lower() != "student":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo estudiantes pueden realizar esta acción"
         )
     return current_user
-
 
 async def get_current_admin(
     current_user: TokenData = Depends(get_current_user)
