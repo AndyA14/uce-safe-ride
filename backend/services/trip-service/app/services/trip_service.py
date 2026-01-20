@@ -1,16 +1,19 @@
-
-from click import Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 from datetime import datetime, timedelta
-from typing import List, Optional,Tuple
+from typing import List, Optional, Tuple
 import logging
 
-from app.db.models import Trip
+from app.db.models import Trip, Passenger
 from app.schemas.trips import (
-    TripCreate, TripUpdate, TripStatus,
-    TripStartRequest, TripCompleteRequest,
-    TripLocationUpdate, TripFilterParams
+    TripCreate, 
+    TripUpdate, 
+    TripStatus,
+    TripStartRequest, 
+    TripCompleteRequest,
+    TripLocationUpdate, 
+    TripFilterParams,
+    PassengerCreate 
 )
 from app.services.event_publisher import EventPublisher
 from app.services.validation_service import ValidationService
@@ -21,7 +24,6 @@ from app.core.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class TripService:
     """
@@ -41,27 +43,8 @@ class TripService:
     # ==================== CRUD ====================
     
     def create_trip(self, trip_data: TripCreate, token: str = None) -> Trip:
-        """
-        Crea un nuevo viaje.
-        ✅ THESIS MODE: Validaciones externas comentadas
-        
-        Args:
-            trip_data: Datos del viaje a crear
-            token: Token JWT (opcional, para validaciones externas)
-        """
-        logger.info(
-            f"Creando viaje: route={trip_data.route_id}, "
-            f"driver={trip_data.driver_id}, vehicle={trip_data.vehicle_id}"
-        )
-        
-        # 🎓 THESIS MODE: Validaciones externas desactivadas
-        # if self.validation_service and token:
-        #     await self.validation_service.validate_trip_creation(
-        #         route_id=trip_data.route_id,
-        #         driver_id=trip_data.driver_id,
-        #         vehicle_id=trip_data.vehicle_id,
-        #         token=token
-        #     )
+        """Crea un nuevo viaje."""
+        logger.info(f"Creando viaje: route={trip_data.route_id}, driver={trip_data.driver_id}")
         
         # Verificar que el conductor no tenga viajes activos
         existing_active = self.db.query(Trip).filter(
@@ -72,27 +55,21 @@ class TripService:
         ).first()
         
         if existing_active:
-            logger.warning(
-                f"Conductor {trip_data.driver_id} ya tiene viaje activo: {existing_active.id}"
-            )
             raise TripAlreadyActiveException(trip_data.driver_id)
         
-        # Crear el viaje
         trip = Trip(
             route_id=trip_data.route_id,
             driver_id=trip_data.driver_id,
             vehicle_id=trip_data.vehicle_id,
             scheduled_start_time=trip_data.scheduled_start_time,
             max_passengers=trip_data.max_passengers,
-            status=TripStatus.CREATED.value,  # ✅ Usar .value
+            status=TripStatus.CREATED.value,
             current_passenger_count=0
         )
         
         self.db.add(trip)
         self.db.commit()
         self.db.refresh(trip)
-        
-        logger.info(f"Viaje {trip.id} creado exitosamente")
         
         # Publicar evento
         if self.event_publisher:
@@ -111,49 +88,31 @@ class TripService:
         return trip
     
     def get_trip(self, trip_id: int) -> Optional[Trip]:
-        """Obtiene un viaje por ID"""
         trip = self.db.query(Trip).filter(Trip.id == trip_id).first()
         if not trip:
-            logger.warning(f"Viaje {trip_id} no encontrado")
             raise TripNotFoundException(trip_id)
         return trip
-    def list_trips(self, filters: TripFilterParams) -> Tuple[List[Trip], int]:
 
+    def list_trips(self, filters: TripFilterParams) -> Tuple[List[Trip], int]:
         query = self.db.query(Trip)
 
-        # Filtros dinámicos
         if filters.driver_id:
             query = query.filter(Trip.driver_id == filters.driver_id)
-
         if filters.vehicle_id:
             query = query.filter(Trip.vehicle_id == filters.vehicle_id)
-
         if filters.route_id:
             query = query.filter(Trip.route_id == filters.route_id)
-
-        # Si status es None, no se filtra
         if filters.status:
             query = query.filter(Trip.status == filters.status)
 
-        # Total antes de paginar
         total = query.count()
-
-        # Paginación
         skip = (filters.page - 1) * filters.page_size
-
-        items = (
-            query.order_by(desc(Trip.scheduled_start_time))
-                .offset(skip)
-                .limit(filters.page_size)
-                .all()
-        )
+        items = query.order_by(desc(Trip.scheduled_start_time)).offset(skip).limit(filters.page_size).all()
 
         return items, total
 
     def update_trip(self, trip_id: int, update_data: TripUpdate) -> Trip:
-        """Actualiza información básica del viaje"""
         trip = self.get_trip(trip_id)
-        
         if trip.status in [TripStatus.ACTIVE.value, TripStatus.COMPLETED.value]:
             raise InvalidTripStatusException(trip.status, "actualizar")
         
@@ -162,26 +121,19 @@ class TripService:
         
         self.db.commit()
         self.db.refresh(trip)
-        
-        logger.info(f"Viaje {trip_id} actualizado")
         return trip
     
     def delete_trip(self, trip_id: int) -> None:
-        """Elimina un viaje (solo si está en estado CREATED)"""
         trip = self.get_trip(trip_id)
-        
         if trip.status != TripStatus.CREATED.value:
             raise InvalidTripStatusException(trip.status, "eliminar")
         
         self.db.delete(trip)
         self.db.commit()
-        
-        logger.info(f"Viaje {trip_id} eliminado")
     
-    # ==================== Lifecycle (✅ RESTAURADO) ====================
+    # ==================== Lifecycle ====================
     
     def start_trip(self, trip_id: int, start_data: TripStartRequest) -> Trip:
-        """Inicia un viaje"""
         trip = self.get_trip(trip_id)
         
         if trip.status != TripStatus.CREATED.value:
@@ -192,8 +144,6 @@ class TripService:
         
         self.db.commit()
         self.db.refresh(trip)
-        
-        logger.info(f"Viaje {trip_id} iniciado")
         
         if self.event_publisher:
             from app.schemas.events import TripStartedEvent, LocationData
@@ -214,7 +164,6 @@ class TripService:
         return trip
     
     def complete_trip(self, trip_id: int, complete_data: TripCompleteRequest) -> Trip:
-        """Completa un viaje"""
         trip = self.get_trip(trip_id)
         
         if trip.status != TripStatus.ACTIVE.value:
@@ -225,8 +174,6 @@ class TripService:
         
         self.db.commit()
         self.db.refresh(trip)
-        
-        logger.info(f"Viaje {trip_id} completado")
         
         if self.event_publisher:
             from app.schemas.events import TripCompletedEvent, LocationData
@@ -249,7 +196,6 @@ class TripService:
         return trip
     
     def cancel_trip(self, trip_id: int, reason: str) -> Trip:
-        """Cancela un viaje"""
         trip = self.get_trip(trip_id)
         
         if trip.status in [TripStatus.COMPLETED.value, TripStatus.CANCELLED.value]:
@@ -258,8 +204,6 @@ class TripService:
         trip.status = TripStatus.CANCELLED.value
         self.db.commit()
         self.db.refresh(trip)
-        
-        logger.info(f"Viaje {trip_id} cancelado: {reason}")
         
         if self.event_publisher:
             from app.schemas.events import TripCancelledEvent
@@ -275,27 +219,21 @@ class TripService:
         return trip
     
     def update_location(self, trip_id: int, location: TripLocationUpdate) -> Trip:
-        """Actualiza la ubicación del viaje"""
         trip = self.get_trip(trip_id)
-        
         if trip.status != TripStatus.ACTIVE.value:
             raise InvalidTripStatusException(trip.status, "actualizar ubicación")
         
-        # Aquí podrías actualizar campos de ubicación si existen en el modelo
+        # Actualizar campos de ubicación si existen
         # trip.current_latitude = location.latitude
         # trip.current_longitude = location.longitude
         
         self.db.commit()
         self.db.refresh(trip)
-        
         return trip
     
-    # ==================== Queries (✅ RESTAURADAS TODAS) ====================
+    # ==================== Queries & Pasajeros ====================
     
     def get_active_trip_by_driver(self, driver_id: str) -> Optional[Trip]:
-        """
-        Obtiene el viaje activo de un conductor.
-        """
         return self.db.query(Trip).filter(
             and_(
                 Trip.driver_id == driver_id,
@@ -303,25 +241,60 @@ class TripService:
             )
         ).first()
     
-    def get_active_trips_by_route(self, route_id: str) -> List[Trip]:
-        """
-        Obtiene todos los viajes activos de una ruta.
-        """
-        return self.db.query(Trip).filter(
-            and_(
-                Trip.route_id == route_id,
-                Trip.status == TripStatus.ACTIVE.value
-            )
-        ).all()
+    def get_active_trip_by_route(self, db: Session, route_id: str):
+        # 🟢 CORRECCIÓN: Eliminamos "BOARDING" porque no es un TripStatus válido en Postgres
+        return db.query(Trip).filter(
+            Trip.route_id == route_id,
+            Trip.status.in_([
+                TripStatus.CREATED.value, 
+                TripStatus.ACTIVE.value
+            ])
+        ).order_by(Trip.id.desc()).first()
     
-    def get_upcoming_trips(
-        self, 
-        hours_ahead: int = 24, 
-        route_id: Optional[str] = None
-    ) -> List[Trip]:
-        """
-        ✅ RESTAURADO: Obtiene viajes programados en las próximas N horas.
-        """
+    def add_passenger(self, db: Session, trip_id: int, passenger_data: PassengerCreate):
+        """Registra un pasajero en el viaje y emite evento a Kafka"""
+        trip = self.get_trip(trip_id)
+        
+        # Validaciones
+        if trip.status not in [TripStatus.CREATED.value, TripStatus.ACTIVE.value]:
+             raise InvalidTripStatusException(trip.status, "subir pasajeros")
+             
+        if trip.current_passenger_count >= trip.max_passengers:
+            raise ValueError("El bus está lleno")
+
+        # Crear Pasajero
+        passenger = Passenger(
+            trip_id=trip.id,
+            student_id=passenger_data.student_id,
+            status="BOARDED",
+            fare_amount=passenger_data.fare_amount,
+            boarded_at=datetime.now()
+        )
+        db.add(passenger)
+        
+        # Actualizar Contador
+        trip.current_passenger_count += 1
+        db.commit()
+        db.refresh(passenger)
+        
+        logger.info(f"Pasajero {passenger.student_id} subió al viaje {trip.id}")
+
+        # Publicar Evento Genérico a Kafka
+        if self.event_publisher:
+            event_payload = {
+                "event_type": "passenger.boarded",
+                "data": {
+                    "trip_id": trip.id,
+                    "route_id": str(trip.route_id),
+                    "student_id": passenger.student_id,
+                    "passenger_count": trip.current_passenger_count
+                }
+            }
+            self.event_publisher.publish(event_payload)
+            
+        return passenger
+
+    def get_upcoming_trips(self, hours_ahead: int = 24, route_id: Optional[str] = None) -> List[Trip]:
         now = datetime.now()
         future = now + timedelta(hours=hours_ahead)
         

@@ -6,16 +6,25 @@ from fastapi.concurrency import run_in_threadpool
 from app.websocket.manager import manager
 from app.messaging.rabbitmq.producer import publish_event
 from app.websocket.redis_listener import redis_listener
+from app.messaging.kafka_consumer import consume_location_events 
 from app.core.jwt import decode_token
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Iniciando WebSocket Gateway + Redis")
-    task = asyncio.create_task(redis_listener())
+    print("🚀 Iniciando WebSocket Gateway (Redis + Kafka)")
+    
+    # Iniciamos Redis (Tu código original)
+    task_redis = asyncio.create_task(redis_listener())
+    
+    # Iniciamos Kafka (Nuestra integración)
+    task_kafka = asyncio.create_task(consume_location_events()) 
+    
     try:
         yield
     finally:
-        task.cancel()
+        print("🛑 Deteniendo servicios de mensajería...")
+        task_redis.cancel()
+        task_kafka.cancel() 
 
 app = FastAPI(
     title="WebSocket Gateway",

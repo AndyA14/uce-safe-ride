@@ -1,10 +1,10 @@
-
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 import logging
 
-from app.db.models import Trip, TripPassenger
+# 🟢 CORRECCIÓN: Importamos 'Passenger' (el nombre real en DB), no 'TripPassenger'
+from app.db.models import Trip, Passenger
 from app.schemas.passengers import (
     TripPassengerCreate, 
     PassengerBoardRequest, 
@@ -21,7 +21,6 @@ from app.services.event_publisher import EventPublisher
 from app.services.validation_service import ValidationService
 
 logger = logging.getLogger(__name__)
-
 
 class PassengerService:
     """
@@ -43,7 +42,7 @@ class PassengerService:
         self, 
         trip_id: int, 
         passenger_data: TripPassengerCreate
-    ) -> TripPassenger:
+    ) -> Passenger: # 🟢 CORRECCIÓN DE TIPO DE RETORNO
         """
         Agrega un pasajero a un viaje.
         ✅ RESTAURADO: Validación de estados
@@ -76,10 +75,10 @@ class PassengerService:
         if current_count >= trip.max_passengers:
             raise TripFullException(trip_id)
 
-        # 4. Verificar duplicados
-        existing = self.db.query(TripPassenger).filter(
-            TripPassenger.trip_id == trip_id,
-            TripPassenger.student_id == passenger_data.student_id
+        # 4. Verificar duplicados (Usando Passenger)
+        existing = self.db.query(Passenger).filter( # 🟢 CORRECCIÓN
+            Passenger.trip_id == trip_id,
+            Passenger.student_id == passenger_data.student_id
         ).first()
         
         if existing:
@@ -93,8 +92,8 @@ class PassengerService:
         #     await self.validation_service.validate_student_exists(...)
         #     await self.validation_service.validate_stop_exists(...)
 
-        # 5. Crear pasajero
-        passenger = TripPassenger(
+        # 5. Crear pasajero (Usando Passenger)
+        passenger = Passenger( # 🟢 CORRECCIÓN
             trip_id=trip_id,
             student_id=passenger_data.student_id,
             stop_id=passenger_data.stop_id,
@@ -117,21 +116,23 @@ class PassengerService:
 
         # 7. Publicar evento
         if self.event_publisher:
+            # Aseguramos compatibilidad si el publisher espera el nombre viejo o nuevo
+            # Lo ideal es que el publisher reciba el objeto tal cual
             self.event_publisher.publish_passenger_joined(passenger, trip)
         
         return passenger
 
-    def list_passengers(self, trip_id: int) -> List[TripPassenger]:
+    def list_passengers(self, trip_id: int) -> List[Passenger]: # 🟢 CORRECCIÓN
         """Lista todos los pasajeros de un viaje"""
-        return self.db.query(TripPassenger).filter(
-            TripPassenger.trip_id == trip_id
+        return self.db.query(Passenger).filter( # 🟢 CORRECCIÓN
+            Passenger.trip_id == trip_id
         ).all()
 
-    def get_passenger(self, trip_id: int, passenger_id: int) -> TripPassenger:
+    def get_passenger(self, trip_id: int, passenger_id: int) -> Passenger: # 🟢 CORRECCIÓN
         """Obtiene un pasajero específico"""
-        passenger = self.db.query(TripPassenger).filter(
-            TripPassenger.trip_id == trip_id, 
-            TripPassenger.id == passenger_id
+        passenger = self.db.query(Passenger).filter( # 🟢 CORRECCIÓN
+            Passenger.trip_id == trip_id, 
+            Passenger.id == passenger_id
         ).first()
         
         if not passenger:
@@ -148,7 +149,7 @@ class PassengerService:
         trip_id: int, 
         passenger_id: int, 
         board_data: PassengerBoardRequest
-    ) -> TripPassenger:
+    ) -> Passenger: # 🟢 CORRECCIÓN
         """Marca un pasajero como abordado"""
         passenger = self.get_passenger(trip_id, passenger_id)
         trip = self.db.query(Trip).filter(Trip.id == trip_id).first()
@@ -182,10 +183,10 @@ class PassengerService:
         self, 
         student_id: str, 
         active_only: bool = False
-    ) -> List[TripPassenger]:
+    ) -> List[Passenger]: # 🟢 CORRECCIÓN
         """Obtiene todos los viajes de un estudiante"""
-        query = self.db.query(TripPassenger).filter(
-            TripPassenger.student_id == student_id
+        query = self.db.query(Passenger).filter( # 🟢 CORRECCIÓN
+            Passenger.student_id == student_id
         )
         
         if active_only:

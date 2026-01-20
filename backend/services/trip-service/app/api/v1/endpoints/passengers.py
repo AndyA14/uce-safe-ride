@@ -131,3 +131,4 @@ async def get_my_student_trips(
 ):
     trips = passenger_service.get_student_trips(current_user.user_id, active_only)
     return [TripPassengerResponse.model_validate(t) for t in trips]
+

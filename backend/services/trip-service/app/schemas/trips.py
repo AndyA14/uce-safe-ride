@@ -141,3 +141,20 @@ try:
 except ImportError:
     # Si passengers.py aún no existe, ignorar silenciosamente
     pass
+
+class PassengerCreate(BaseModel):
+    student_id: str  
+    stop_id: Optional[str] = None
+    fare_amount: float = 0.25 
+
+class StudentResponse(BaseModel):
+    id: int
+    trip_id: int
+    student_id: str
+    status: str       
+    fare_amount: float
+    created_at: Optional[datetime] = None
+    boarded_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
