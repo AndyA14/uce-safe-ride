@@ -9,7 +9,6 @@ jobs:
     name: Build & Push
     runs-on: ubuntu-latest
     
-
     environment: qa
 
     strategy:
@@ -44,7 +43,7 @@ jobs:
       - name: 🛠️ Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: ${{ matrix.service == 'simulation-service' && format('./backend/services/{0}', matrix.service) || './backend' }}
           
           file: ./backend/services/${{ matrix.service }}/Dockerfile
           
