@@ -9,10 +9,12 @@ jobs:
     name: Build & Push
     runs-on: ubuntu-latest
     
+
+    environment: qa
+
     strategy:
       fail-fast: false
       matrix:
-        # 👇 SOLO LAS CARPETAS QUE VEO EN TU FOTO
         service: 
           - auth-service
           - driver-service
@@ -42,9 +44,10 @@ jobs:
       - name: 🛠️ Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          # 👇👇👇 AQUÍ ESTABA EL ERROR: FALTABA /services/ 👇👇👇
-          context: ./backend/services/${{ matrix.service }}
+          context: ./backend
+          
           file: ./backend/services/${{ matrix.service }}/Dockerfile
+          
           push: true
           tags: |
             aceofglass14/uce-${{ matrix.service }}:qa
