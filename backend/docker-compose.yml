@@ -129,6 +129,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+# ==================== MQTT Broker ====================
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    user: root  
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./services/simulation-service/mosquitto/config:/mosquitto/config
+      - ./services/simulation-service/mosquitto/data:/mosquitto/data
+      - ./services/simulation-service/mosquitto/log:/mosquitto/log
+    networks:
+      - uce-net
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    
   # ==================================================
   # AUTH SERVICE
   # ==================================================
@@ -373,4 +395,37 @@ services:
         condition: service_healthy 
     networks:
       - uce-net 
+    restart: unless-stopped
+
+# ==================== SIMULATION SERVICE ====================
+  simulation-service:
+    build: ./services/simulation-service
+    container_name: simulation-service
+    ports:
+      - "8011:8000"
+    environment:
+      TRIP_SERVICE_URL: http://trip-service:8000
+      ROUTE_SERVICE_URL: http://trip-service:8000
+
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      MQTT_TOPIC: uce/trips/location
+
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_TRIPS: trips
+      KAFKA_ENABLED: "true"
+
+      SIMULATION_INTERVAL: 2.0
+      SIMULATION_SPEED_MULTIPLIER: 1.0
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      trip-service:
+        condition: service_started
+      route-service:
+        condition: service_started
+    networks:
+      - uce-net
     restart: unless-stopped
