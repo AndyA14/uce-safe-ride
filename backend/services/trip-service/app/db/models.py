@@ -3,6 +3,7 @@ from sqlalchemy import (
     String,
     Integer,
     Float,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -171,3 +172,16 @@ class Passenger(Base):
     @property
     def is_boarded(self) -> bool:
         return self.status == PassengerStatus.BOARDED
+    
+class Route(Base):
+    __tablename__ = "routes"
+
+    id = Column(String, primary_key=True, index=True) 
+    name = Column(String)
+    origin = Column(String)       
+    destination = Column(String)  
+    polyline = Column(String, nullable=True) 
+    active = Column(Boolean, default=True)
+
+    # Opcional: Si Trip tiene una relación con Route
+    # trips = relationship("Trip", back_populates="route")

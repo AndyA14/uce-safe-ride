@@ -150,7 +150,7 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    
+
   # ==================================================
   # AUTH SERVICE
   # ==================================================
@@ -405,7 +405,7 @@ services:
       - "8011:8000"
     environment:
       TRIP_SERVICE_URL: http://trip-service:8000
-      ROUTE_SERVICE_URL: http://trip-service:8000
+      ROUTE_SERVICE_URL: http://route-service:8000
 
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883

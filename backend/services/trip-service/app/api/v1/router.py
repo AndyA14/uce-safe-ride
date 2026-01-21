@@ -1,8 +1,15 @@
-# app/api/v1/router.py
 from fastapi import APIRouter
-from app.api.v1.endpoints import trips, trip_lifecycle, passengers, health
+from app.api.v1.endpoints import trips, trip_lifecycle, passengers, health,routes
+
 
 api_router = APIRouter()
+
+api_router.include_router(
+    routes.router,
+    prefix="/routes",  
+    tags=["Routes"]
+)
+
 
 api_router.include_router(
     trips.router,
@@ -21,6 +28,7 @@ api_router.include_router(
     prefix="/trips",
     tags=["Passengers"]
 )
+
 
 api_router.include_router(
     health.router,
