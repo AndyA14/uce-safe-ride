@@ -20,14 +20,10 @@ jobs:
           - auth-service
           - tracking-service
           - simulation-service
-          - passenger-service
           - driver-service
-          - payment-service
           - notification-service
-          - audit-service
-          - analytics-service
-          - admin-service
           - gateway-service
+          - stop-service
 
     steps:
       - name: 📥 Checkout code
