@@ -11,7 +11,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # LISTA DE TUS 14 MICROSERVICIOS (Ajusta los nombres según tus carpetas en 'backend')
         service: 
           - vehicle-service
           - trip-service
@@ -44,7 +43,7 @@ jobs:
       - name: 🛠️ Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          # Asumiendo que están dentro de la carpeta 'backend'
+          # Confirmado por tu imagen: la carpeta se llama 'backend'
           context: ./backend/${{ matrix.service }}
           file: ./backend/${{ matrix.service }}/Dockerfile
           push: true
