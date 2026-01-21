@@ -1,112 +1,52 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getActiveRoute } from '@/services/routeService';
 
-// Ajusta esto a tu URL real de producción
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8009/ws';
+// Apuntamos al endpoint real
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8010/api/v1/ws/trips';
 
-export const useRouteSocket = (token: string | null) => {
+export const useRouteSocket = (token: string | null, tripId: string | number | null) => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<any>(null);
-  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Función interna para manejar la lógica de negocio post-conexión
-  const handleAuthAndSubscription = useCallback(async (socket: WebSocket, currentToken: string) => {
-    try {
-      console.log("🔍 Verificando ruta activa vía REST...");
-      // 1. Consultamos al endpoint REST
-      const routeData = await getActiveRoute(currentToken);
-
-      if (routeData && routeData.route_id) {
-        setActiveRouteId(routeData.route_id);
-        console.log(`✅ Ruta detectada: ${routeData.route_id}`);
-
-        // 2. Si el socket sigue abierto, enviamos la suscripción
-        if (socket.readyState === WebSocket.OPEN) {
-          const payload = {
-            action: "subscribe",
-            route_id: routeData.route_id
-          };
-          socket.send(JSON.stringify(payload));
-          console.log("📡 Suscripción enviada automáticamente al WebSocket");
-        }
-      } else {
-        console.log("ℹ️ Usuario sin ruta activa. Socket conectado en espera.");
-      }
-    } catch (err) {
-      console.error("❌ Error en flujo de suscripción:", err);
-    }
-  }, []);
 
   const connect = useCallback(() => {
-    if (!token) return;
+    // 🛑 AHORA VALIDAMOS QUE EXISTA TRIP_ID
+    if (!token || !tripId) return;
 
-    // Evitar reconexiones si ya está abierto
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
-    // URL limpia con token en Query Param
-    const url = `${WS_URL}?token=${token}`;
-    console.log("🔌 Conectando WebSocket...");
+    // Enviamos el trip_id en la URL
+    const url = `${WS_URL}?token=${token}&trip_id=${tripId}`;
+    console.log('🔌 Conectando Real:', url);
     
     const ws = new WebSocket(url);
     socketRef.current = ws;
 
     ws.onopen = () => {
-      console.log("🟢 WebSocket Conectado (Open)");
+      console.log('🟢 Conectado al viaje real:', tripId);
       setIsConnected(true);
-      // Iniciar el flujo de negocio
-      handleAuthAndSubscription(ws, token);
     };
 
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("📍 GPS REAL RECIBIDO:", data); 
         setLastMessage(data);
       } catch (e) {
-        console.error("⚠️ Error parseando mensaje WS:", e);
+        console.warn('⚠️ Error parsing:', event.data);
       }
     };
 
-    ws.onclose = (event) => {
-      console.log("🔴 WebSocket Desconectado");
-      setIsConnected(false);
-      
-      // Reconexión automática si no fue cierre limpio
-      if (event.code !== 1000) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log("🔄 Intentando reconectar...");
-          connect();
-        }, 3000);
-      }
-    };
+    ws.onclose = () => setIsConnected(false);
 
-    ws.onerror = (err) => {
-      console.error("⚠️ Error WebSocket:", err);
-      ws.close();
-    };
-
-  }, [token, handleAuthAndSubscription]);
+  }, [token, tripId]); // Dependencia agregada: tripId
 
   useEffect(() => {
     connect();
     return () => {
-      if (socketRef.current) socketRef.current.close();
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      socketRef.current?.close();
     };
   }, [connect]);
 
-  // Exponemos publish por si es un conductor
-  const publish = useCallback((routingKey: string, payload: any) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        action: "publish",
-        routing_key: routingKey,
-        payload
-      }));
-    }
-  }, []);
-
-  return { isConnected, lastMessage, activeRouteId, publish };
+  return { isConnected, lastMessage };
 };

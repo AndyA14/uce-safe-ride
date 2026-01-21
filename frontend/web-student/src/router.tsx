@@ -14,7 +14,6 @@ import LoginModal from '@/components/landing/LoginModal';
 // Student pages
 // =====================
 import StudentDashboardPage from '@/pages/student/DashboardPage';
-import StudentTrackingPage from '@/pages/student/TrackingPage';
 import StudentRoutesPage from '@/pages/student/RoutesPage';
 import StudentHistoryPage from '@/pages/student/HistoryPage';
 import StudentPaymentsPage from '@/pages/student/PaymentsPage';
@@ -146,7 +145,6 @@ export default function Router() {
       >
         <Route index element={<Navigate to="/student/dashboard" replace />} />
         <Route path="dashboard" element={<StudentDashboardPage />} />
-        <Route path="tracking" element={<StudentTrackingPage />} />
         <Route path="transport" element={<StudentTransportPage />} />
         <Route path="routes" element={<StudentRoutesPage />} />
         <Route path="history" element={<StudentHistoryPage />} />

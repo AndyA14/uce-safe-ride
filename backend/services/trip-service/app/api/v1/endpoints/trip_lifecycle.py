@@ -13,6 +13,8 @@ from app.api.v1.endpoints.dependencies import (
     get_trip_service, verify_trip_ownership
 )
 from app.db.models import Trip
+# 🟢 IMPORTAMOS EL MANAGER
+from app.core.socket_manager import manager
 
 router = APIRouter()
 
@@ -31,13 +33,6 @@ async def start_trip(
 ):
     """
     Inicia un viaje.
-    
-    - Cambia estado a **ACTIVE**
-    - Registra ubicación inicial
-    - Registra hora de inicio real
-    - Emite evento **trip.started** (crítico para WebSocket y Tracking)
-    
-    **Solo el conductor propietario puede iniciar el viaje.**
     """
     started_trip = trip_service.start_trip(trip_id, start_data)
     return TripResponse.from_orm_with_computed(started_trip)
@@ -57,14 +52,6 @@ async def complete_trip(
 ):
     """
     Completa un viaje exitosamente.
-    
-    - Cambia estado a **COMPLETED**
-    - Registra ubicación final
-    - Registra hora de finalización
-    - Marca todos los pasajeros abordados como **COMPLETED**
-    - Emite evento **trip.completed** (crítico para Payment Service)
-    
-    **Solo el conductor propietario puede completar el viaje.**
     """
     completed_trip = trip_service.complete_trip(trip_id, complete_data)
     return TripResponse.from_orm_with_computed(completed_trip)
@@ -84,12 +71,6 @@ async def cancel_trip(
 ):
     """
     Cancela un viaje.
-    
-    - Cambia estado a **CANCELLED**
-    - Emite evento **trip.cancelled**
-    - Notifica a todos los pasajeros
-    
-    **Solo el conductor propietario puede cancelar el viaje.**
     """
     cancelled_trip = trip_service.cancel_trip(trip_id, cancel_data.reason)
     return TripResponse.from_orm_with_computed(cancelled_trip)
@@ -108,16 +89,22 @@ async def update_trip_location(
     trip_service: TripService = Depends(get_trip_service)
 ):
     """
-    Actualiza la ubicación GPS actual del viaje.
-    
-    - Solo viajes en estado **ACTIVE** pueden actualizar ubicación
-    - Registra timestamp de la actualización
-    - Opcionalmente emite evento **trip.location_updated**
-    
-    **Solo el conductor propietario puede actualizar la ubicación.**
-    
-    **Nota**: Para tracking en tiempo real, considera usar MQTT/Redis
-    directamente desde la app del conductor en lugar de HTTP.
+    Actualiza la ubicación GPS actual del viaje y la transmite en vivo.
     """
+    # 1. Actualizar en Base de Datos
     updated_trip = trip_service.update_location(trip_id, location)
+    
+    # 2. 🟢 TRANSMISIÓN EN VIVO AL WEBSOCKET (ESTUDIANTES)
+    # Esto toma el dato real que acaba de llegar y lo empuja a los sockets conectados
+    await manager.broadcast_location(trip_id, {
+        "trip_id": trip_id,
+        "location": {
+            "latitude": location.latitude,
+            "longitude": location.longitude
+        },
+        "status": updated_trip.status,
+        # Si 'speed' viene en el request, lo enviamos, si no 0
+        "speed": getattr(location, 'speed', 0) 
+    })
+
     return TripResponse.from_orm_with_computed(updated_trip)

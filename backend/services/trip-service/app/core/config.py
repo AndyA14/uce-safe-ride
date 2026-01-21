@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     DB_ECHO: bool = False
     
     # JWT
+    SECRET_KEY: Optional[str] = None  # Alias para evitar errores si usas SECRET_KEY en docker
+    JWT_ISSUER: Optional[str] = None  # Para validar el emisor uce-safe-ride
     JWT_SECRET_KEY: str = "super-secret-change-me"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

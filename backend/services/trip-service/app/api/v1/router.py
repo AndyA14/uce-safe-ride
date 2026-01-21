@@ -1,21 +1,17 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import trips, trip_lifecycle, passengers, health,routes
-
+from app.api.v1.endpoints import trips, trip_lifecycle, passengers, health,tracking
 
 api_router = APIRouter()
-
-api_router.include_router(
-    routes.router,
-    prefix="/routes",  
-    tags=["Routes"]
-)
-
 
 api_router.include_router(
     trips.router,
     prefix="/trips",
     tags=["Trips"]
 )
+api_router.include_router(
+    tracking.router, 
+    tags=["Tracking"])
+
 
 api_router.include_router(
     trip_lifecycle.router,

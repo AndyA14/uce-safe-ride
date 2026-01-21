@@ -160,8 +160,10 @@ services:
       dockerfile: services/auth-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_auth
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
-      JWT_ISSUER: uce-safe-ride
+      SECRET_KEY: ${JWT_SECRET_KEY} 
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_ALGORITHM: HS256
     depends_on:
       postgres:
         condition: service_healthy
@@ -333,7 +335,7 @@ services:
     restart: unless-stopped
 
   
-  # ==================================================
+# ==================================================
   # TRIP SERVICE 
   # ==================================================
   trip-service:
@@ -343,10 +345,13 @@ services:
     container_name: trip-service
     ports:
       - "8010:8000"
+    volumes:
+      - ./services/trip-service:/app
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/uce_trip
-
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      SECRET_KEY: ${JWT_SECRET_KEY} 
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ISSUER: ${JWT_ISSUER}
       JWT_ALGORITHM: HS256
 
       RABBITMQ_HOST: rabbitmq
@@ -373,7 +378,7 @@ services:
     restart: unless-stopped
 
 # ==================================================
-  # TRACKING SERVICE (MongoDB)
+  # TRACKING SERVICE 
   # ==================================================
   tracking-service:
     build:

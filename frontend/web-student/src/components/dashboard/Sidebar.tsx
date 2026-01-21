@@ -26,7 +26,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   // --- MENÚ ESTUDIANTE ---
   { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['STUDENT'] },
-  { to: '/student/tracking', label: 'Rastreo en Vivo', icon: Navigation, roles: ['STUDENT'] },
   { to: '/student/transport', label: 'Mi Transporte', icon: Bus, roles: ['STUDENT'] },
   { to: '/student/routes', label: 'Rutas', icon: MapIcon, roles: ['STUDENT'] },
   { to: '/student/history', label: 'Historial', icon: History, roles: ['STUDENT'] },
