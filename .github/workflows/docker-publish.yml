@@ -1,31 +1,52 @@
-name: 🐳 Build & Push Docker Images (QA)
+name: 🐳 Smart Build & Push (QA)
 
 on:
   push:
     branches: [ "qa" ]
 
 jobs:
-  build-and-push:
-    name: Build & Push
+  # JOB 1: EL DETECTIVE 🕵️‍♂️
+  # Este trabajo averigua qué carpetas han cambiado
+  detect-changes:
     runs-on: ubuntu-latest
-    
-    environment: qa
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # Genera una lista JSON con los servicios modificados
+          base: qa
+          filters: |
+            auth-service: backend/services/auth-service/**
+            driver-service: backend/services/driver-service/**
+            notification-service: backend/services/notification-service/**
+            route-service: backend/services/route-service/**
+            simulation-service: backend/services/simulation-service/**
+            stop-service: backend/services/stop-service/**
+            student-service: backend/services/student-service/**
+            tracking-service: backend/services/tracking-service/**
+            trip-service: backend/services/trip-service/**
+            vehicle-service: backend/services/vehicle-service/**
+            ws-gateway: backend/services/ws-gateway/**
 
+  # JOB 2: EL CONSTRUCTOR 🏗️
+  # Solo se ejecuta si hay cambios y solo para los servicios detectados
+  build-and-push:
+    needs: detect-changes
+    # Si la lista está vacía (ej. cambiaste el README), este job NO arranca
+    if: ${{ needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
+    
+    runs-on: ubuntu-latest
+    environment: qa
+    
     strategy:
       fail-fast: false
       matrix:
-        service: 
-          - auth-service
-          - driver-service
-          - notification-service
-          - route-service
-          - simulation-service
-          - stop-service
-          - student-service
-          - tracking-service
-          - trip-service
-          - vehicle-service
-          - ws-gateway
+        # Aquí está la magia: La matriz ya no es fija, viene del Job anterior
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
 
     steps:
       - name: 📥 Checkout code
@@ -43,10 +64,10 @@ jobs:
       - name: 🛠️ Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
+          # Mantenemos la lógica condicional que ya funcionó
           context: ${{ matrix.service == 'simulation-service' && format('./backend/services/{0}', matrix.service) || './backend' }}
           
           file: ./backend/services/${{ matrix.service }}/Dockerfile
-          
           push: true
           tags: |
             aceofglass14/uce-${{ matrix.service }}:qa
