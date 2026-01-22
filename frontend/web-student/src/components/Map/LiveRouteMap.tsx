@@ -1,10 +1,5 @@
-import React, { useMemo, useState, useCallback } from 'react';
-import {
-  GoogleMap,
-  useJsApiLoader,
-  Polyline,
-  Marker,
-} from '@react-google-maps/api';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { GoogleMap, useJsApiLoader, Polyline, Marker } from '@react-google-maps/api';
 
 /* ======================================================
    TYPES
@@ -42,7 +37,7 @@ const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
       import.meta.env.VITE_GOOGLE_MAPS_KEY ||
       process.env.REACT_APP_GOOGLE_MAPS_KEY ||
       '',
-    libraries: libraries,
+    libraries,
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -71,6 +66,18 @@ const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
     [path]
   );
 
+  /**
+   * 3️⃣ Forzar al mapa a seguir al bus
+   */
+  useEffect(() => {
+    if (map && busLocation && busLocation.lat !== 0) {
+      console.log("📍 Centrando mapa en:", busLocation);
+      map.panTo(busLocation); // pan suave
+      // map.setCenter(busLocation); // alternativa instantánea
+      // map.setZoom(15);          // ajustar zoom si quieres
+    }
+  }, [map, busLocation?.lat, busLocation?.lng]);
+
   if (!isLoaded) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-slate-100 rounded-xl">
@@ -95,7 +102,7 @@ const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
         <Polyline
           path={path}
           options={{
-            strokeColor: '#2563EB', // Azul UCE
+            strokeColor: '#2563EB',
             strokeOpacity: 0.8,
             strokeWeight: 6,
           }}
