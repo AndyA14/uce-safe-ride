@@ -1,8 +1,15 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
-export default {
+const config = {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./index.html",
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -14,7 +21,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -62,9 +69,11 @@ export default {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
           primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          "primary-foreground":
+            "hsl(var(--sidebar-primary-foreground))",
           accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          "accent-foreground":
+            "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
@@ -102,6 +111,25 @@ export default {
           from: { transform: "scale(0.95)", opacity: "0" },
           to: { transform: "scale(1)", opacity: "1" },
         },
+
+        /* ✅ NEON PULSE */
+        neonPulse: {
+          "0%": {
+            boxShadow:
+              "0 0 6px rgba(41,98,255,0.4), 0 0 12px rgba(41,98,255,0.3)",
+            opacity: "0.85",
+          },
+          "50%": {
+            boxShadow:
+              "0 0 14px rgba(41,98,255,0.75), 0 0 28px rgba(41,98,255,0.55)",
+            opacity: "1",
+          },
+          "100%": {
+            boxShadow:
+              "0 0 6px rgba(41,98,255,0.4), 0 0 12px rgba(41,98,255,0.3)",
+            opacity: "0.85",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -109,8 +137,13 @@ export default {
         "slide-in-right": "slide-in-right 0.4s ease-out",
         "slide-in-left": "slide-in-left 0.4s ease-out",
         "scale-in": "scale-in 0.3s ease-out",
+
+        /* ✅ NEON PULSE */
+        neonPulse: "neonPulse 1.8s ease-in-out infinite",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [animate],
 } satisfies Config;
+
+export default config;
