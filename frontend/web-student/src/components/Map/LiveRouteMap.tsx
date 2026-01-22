@@ -28,6 +28,9 @@ const containerStyle: React.CSSProperties = {
 // Coordenadas por defecto (Quito - UCE)
 const centerQuito = { lat: -0.210, lng: -78.49 };
 
+// ✅ Libraries estática, definida fuera del componente
+const libraries: ('places' | 'geometry')[] = ['geometry'];
+
 /* ======================================================
    COMPONENT
 ====================================================== */
@@ -38,12 +41,11 @@ const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
 }) => {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    // Vite + fallback por seguridad
     googleMapsApiKey:
       import.meta.env.VITE_GOOGLE_MAPS_KEY ||
       process.env.REACT_APP_GOOGLE_MAPS_KEY ||
       '',
-    libraries: ['geometry'], // Necesario para decodePath
+    libraries: libraries, // ✅ Referencia estática
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);

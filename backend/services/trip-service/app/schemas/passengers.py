@@ -4,6 +4,8 @@ from typing import Optional
 from enum import Enum
 
 
+# ==================== ENUMS ====================
+
 class PassengerStatus(str, Enum):
     """Estados de un pasajero en el viaje"""
     RESERVED = "RESERVED"   # Reservó lugar pero no ha abordado
@@ -17,7 +19,10 @@ class PassengerStatus(str, Enum):
 class TripPassengerCreate(BaseModel):
     """Schema para agregar un pasajero a un viaje"""
     student_id: str = Field(..., description="UUID del estudiante")
-    stop_id: str = Field(..., description="UUID de la parada donde abordará")
+    
+    # 🟢 CORRECCIÓN: stop_id opcional
+    stop_id: Optional[str] = Field(None, description="UUID de la parada donde abordará")
+    
     fare_amount: float = Field(..., gt=0, description="Monto de la tarifa")
 
 
@@ -34,7 +39,10 @@ class TripPassengerBase(BaseModel):
     id: int  # PK interno
     trip_id: int  # FK al trip
     student_id: str  # UUID del estudiante
-    stop_id: str  # UUID de la parada
+    
+    # 🟢 CORRECCIÓN: stop_id opcional
+    stop_id: Optional[str] = None 
+    
     status: str  # String para compatibilidad con Enum.value
     fare_amount: float
 
@@ -42,11 +50,15 @@ class TripPassengerBase(BaseModel):
 
 
 class TripPassengerResponse(TripPassengerBase):
-    reserved_at: datetime
+    """Schema para respuesta de pasajero"""
+    # 🟢 PRODUCCIÓN: reserved_at opcional porque puede abordar sin reservar
+    reserved_at: Optional[datetime] = None 
     boarded_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     payment_id: Optional[str] = None
     payment_status: str = "PENDING"
+    
+    # 🟢 Obligatorios generados por la DB
     created_at: datetime
     updated_at: Optional[datetime] = None
 

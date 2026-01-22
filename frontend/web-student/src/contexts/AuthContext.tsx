@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types/user';
 import { loginUser as loginUserService, logoutUser } from '@/services/authService';
-
+import { jwtDecode } from "jwt-decode";
 interface AuthContextType {
   user: User | null;
-  token: string | null; // 🆕 1. Agregamos el token a la interfaz
+  token: string | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -16,40 +16,70 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null); // 🆕 2. Estado para el token
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 🔄 EFECTO DE INICIALIZACIÓN (Recargar página)
   useEffect(() => {
     console.log('[AuthContext] Inicializando...');
-    const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
-
-    if (storedUser && storedToken) {
+    
+    // Intentamos recuperar usuario del token si existe
+    if (storedToken) {
       try {
-        const parsedUser = JSON.parse(storedUser) as User;
-        setUser(parsedUser);
-        setToken(storedToken); // 🆕 3. Recuperamos token al recargar página
+        // 1. Decodificamos el token guardado
+        const decoded: any = jwtDecode(storedToken);
+        
+        // 2. Reconstruimos el usuario con el ID real del token (decoded.sub)
+        // Buscamos si hay un user guardado para complementar datos (nombre, etc)
+        const storedUserStr = localStorage.getItem('user');
+        const storedUser = storedUserStr ? JSON.parse(storedUserStr) : {};
+
+        const recoveredUser: User = {
+          ...storedUser,
+          id: decoded.sub, // 🔥 ID CRÍTICO: Aseguramos que venga del token
+          role: decoded.role || storedUser.role,
+          email: decoded.email || storedUser.email
+        };
+
+        setUser(recoveredUser);
+        setToken(storedToken);
       } catch (error) {
-        console.error('❌ [AuthContext] Error leyendo sesión local:', error);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        console.error('❌ [AuthContext] Token inválido o expirado:', error);
+        logout(); // Si falla, limpiamos todo
       }
     }
     setIsLoading(false);
   }, []);
 
+  // 🚀 FUNCIÓN DE LOGIN
   const login = async (email: string, password: string, role: UserRole) => {
     try {
+      // 1. Petición al API
       const { user: userFromApi, access_token } = await loginUserService({ email, password }, role);
       
-      setUser(userFromApi);
+      // 2. Decodificamos el token para sacar el ID real (sub)
+      const decoded: any = jwtDecode(access_token);
+      console.log("🔓 Token Decodificado:", decoded);
+
+      // 3. Armamos el objeto usuario final
+      const finalUser: User = {
+        ...userFromApi,
+        id: decoded.sub, // 🔥 ID CRÍTICO: Usamos el del token (id_student)
+        role: role // Aseguramos el rol
+      };
+      
+      // 4. Actualizamos estados
+      setUser(finalUser);
       setToken(access_token); 
       
-      localStorage.setItem('user', JSON.stringify(userFromApi));
+      // 5. Guardamos en LocalStorage
+      localStorage.setItem('user', JSON.stringify(finalUser));
       localStorage.setItem('token', access_token);
 
-      return userFromApi;
+      return finalUser;
     } catch (error: any) {
+      console.error("Login fallido:", error);
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       throw error;

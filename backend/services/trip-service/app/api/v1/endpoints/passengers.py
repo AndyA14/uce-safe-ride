@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query, HTTPException
+from fastapi import APIRouter, Depends, status, Query, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -30,16 +30,10 @@ async def add_passenger_to_trip(
     trip_id: int,
     passenger_data: TripPassengerCreate,
     passenger_service: PassengerService = Depends(get_passenger_service),
-    current_user: TokenData = Depends(get_current_student) # O get_current_user si quieres permitir drivers tambien
+    current_user: TokenData = Depends(get_current_student) 
 ):
     # MODO TESIS: Bypass de validación de identidad
     # Permitimos agregar cualquier student_id sin importar quién seas
-    
-    # if passenger_data.student_id != current_user.user_id:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Solo puedes agregarte a ti mismo a un viaje"
-    #     )
     
     passenger = passenger_service.add_passenger(trip_id, passenger_data)
     return TripPassengerResponse.model_validate(passenger)
@@ -55,10 +49,6 @@ async def list_trip_passengers(
     current_user: TokenData = Depends(get_current_user)
 ):
     passengers = passenger_service.list_passengers(trip_id)
-    
-    # MODO TESIS: Ver todos los pasajeros sin restricciones estritas
-    # if current_user.role == "student": ...
-    
     return [TripPassengerResponse.model_validate(p) for p in passengers]
 
 @router.get(
@@ -68,7 +58,7 @@ async def list_trip_passengers(
 )
 async def get_passenger_detail(
     trip_id: int,
-    passenger_id: int,
+    passenger_id: str, # ✅ CAMBIO: int -> str (Para aceptar UUID)
     passenger_service: PassengerService = Depends(get_passenger_service),
     current_user: TokenData = Depends(get_current_user)
 ):
@@ -76,8 +66,6 @@ async def get_passenger_detail(
     if not passenger:
         raise HTTPException(status_code=404, detail="Pasajero no encontrado")
         
-    # MODO TESIS: Sin restricción de permisos
-    
     return TripPassengerResponse.model_validate(passenger)
 
 @router.patch(
@@ -87,7 +75,7 @@ async def get_passenger_detail(
 )
 async def board_passenger(
     trip_id: int,
-    passenger_id: int,
+    passenger_id: str, # ✅ CAMBIO: int -> str (Para aceptar UUID)
     board_data: PassengerBoardRequest,
     passenger_service: PassengerService = Depends(get_passenger_service),
     trip_service: TripService = Depends(get_trip_service),
@@ -97,9 +85,6 @@ async def board_passenger(
     if not trip:
          raise HTTPException(status_code=404, detail="Viaje no encontrado")
 
-    # Validación básica de conductor (Bypass opcional si lo necesitas)
-    # if trip.driver_id != current_user.user_id: ...
-    
     passenger = passenger_service.board_passenger(trip_id, passenger_id, board_data)
     return TripPassengerResponse.model_validate(passenger)
 
@@ -110,8 +95,15 @@ async def board_passenger(
 )
 async def remove_passenger_from_trip(
     trip_id: int,
-    passenger_id: int,
+    passenger_id: str, # ✅ CAMBIO CRÍTICO: int -> str
+    # ⚠️ IMPORTANTE: Si el frontend envía 'reason' en la URL (Query Param):
     reason: str = Query(..., min_length=5, max_length=200),
+    
+    # ⚠️ OPCIONAL: Si decidiste enviarlo en el BODY desde el frontend, 
+    # tendrías que cambiar la línea de arriba por algo como:
+    # payload: DeletePassengerSchema = Body(...) 
+    # Pero intentemos primero solo cambiando el ID a str.
+    
     passenger_service: PassengerService = Depends(get_passenger_service),
     trip_service: TripService = Depends(get_trip_service),
     current_user: TokenData = Depends(get_current_user)
@@ -131,4 +123,3 @@ async def get_my_student_trips(
 ):
     trips = passenger_service.get_student_trips(current_user.user_id, active_only)
     return [TripPassengerResponse.model_validate(t) for t in trips]
-

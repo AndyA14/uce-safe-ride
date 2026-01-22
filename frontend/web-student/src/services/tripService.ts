@@ -1,157 +1,76 @@
-/**
- * Trip Service
- * Handles trip history, active trips, and trip requests
- * 
- * TODO: Connect to Python Backend API
- * Replace mock implementations with actual API calls to:
- * - GET /api/trips/history
- * - GET /api/trips/active
- * - POST /api/trips/request
- * - PUT /api/trips/:id/complete
- */
+import axios from 'axios';
 
-import { Trip } from '@/types/user';
+// Usamos localhost explícito.
+const TRIP_API_URL = 'http://localhost:8010/api/v1/trips';
 
-// Mock trip data - TODO: Remove when backend is connected
-const mockStudentTrips: Trip[] = [
-  {
-    id: '1',
-    date: '2024-01-15',
-    route: 'Ruta Norte',
-    pickup: 'Facultad de Ingeniería',
-    dropoff: 'Entrada Principal',
-    duration: '15 min',
-  },
-  {
-    id: '2',
-    date: '2024-01-14',
-    route: 'Ruta Sur',
-    pickup: 'Biblioteca Central',
-    dropoff: 'Coliseo UCE',
-    duration: '12 min',
-  },
-  {
-    id: '3',
-    date: '2024-01-13',
-    route: 'Ruta Centro',
-    pickup: 'Entrada Principal',
-    dropoff: 'Facultad de Medicina',
-    duration: '20 min',
-  },
-  {
-    id: '4',
-    date: '2024-01-12',
-    route: 'Ruta Norte',
-    pickup: 'Coliseo UCE',
-    dropoff: 'Facultad de Ingeniería',
-    duration: '18 min',
-  },
-  {
-    id: '5',
-    date: '2024-01-11',
-    route: 'Ruta Sur',
-    pickup: 'Facultad de Medicina',
-    dropoff: 'Biblioteca Central',
-    duration: '10 min',
-  },
-];
+const tripApi = axios.create({
+  baseURL: TRIP_API_URL,
+  headers: { 'Content-Type': 'application/json' },
+});
 
-const mockDriverTrips: Trip[] = [
-  {
-    id: '1',
-    date: '2024-01-15',
-    route: 'Ruta Norte',
-    pickup: 'Terminal Norte',
-    dropoff: 'Terminal Sur',
-    duration: '45 min',
-  },
-  {
-    id: '2',
-    date: '2024-01-14',
-    route: 'Ruta Norte',
-    pickup: 'Terminal Norte',
-    dropoff: 'Terminal Sur',
-    duration: '42 min',
-  },
-  {
-    id: '3',
-    date: '2024-01-13',
-    route: 'Ruta Centro',
-    pickup: 'Terminal Central',
-    dropoff: 'Terminal Este',
-    duration: '38 min',
-  },
-];
+tripApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-/**
- * Gets trip history for a user
- * TODO: Connect to Python Backend API - GET /api/trips/history
- */
-export const getTripHistory = async (userId: string, role: 'student' | 'driver'): Promise<Trip[]> => {
-  // TODO: Replace with actual API call
-  // const response = await fetch(`/api/trips/history?userId=${userId}&role=${role}`);
-  // return response.json();
-  
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(role === 'student' ? mockStudentTrips : mockDriverTrips);
-    }, 500);
-  });
+// Normalizador: Extrae el array de donde sea que venga
+const normalizeData = (data: any) => {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  if (data && Array.isArray(data.data)) return data.data; // Por si acaso
+  return [];
 };
 
-/**
- * Gets the current active trip
- * TODO: Connect to Python Backend API - GET /api/trips/active
- */
-export const getActiveTrip = async (userId: string): Promise<Trip | null> => {
-  // TODO: Replace with actual API call
-  // const response = await fetch(`/api/trips/active?userId=${userId}`);
-  // if (response.ok) return response.json();
-  // return null;
-  
-  return null;
-};
-
-/**
- * Requests a new trip (for students)
- * TODO: Connect to Python Backend API - POST /api/trips/request
- */
-export const requestTrip = async (
-  userId: string,
-  pickupStop: string,
-  route: string
-): Promise<Trip> => {
-  // TODO: Replace with actual API call
-  // const response = await fetch('/api/trips/request', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ userId, pickupStop, route }),
-  // });
-  // return response.json();
-  
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: Date.now().toString(),
-        date: new Date().toISOString().split('T')[0],
-        route,
-        pickup: pickupStop,
-        dropoff: 'Pendiente',
-        duration: 'En curso',
+export const transportService = {
+  // 1. Obtener viaje activo
+  getActiveTripByStudent: async (studentId: string) => {
+    if (!studentId || studentId === 'unknown') return null;
+    try {
+      console.log(`📡 [SERVICE] Buscando viaje activo para: ${studentId}`);
+      const response = await tripApi.get('/', {
+        params: { student_id: studentId, status: 'ACTIVE' }
       });
-    }, 500);
-  });
-};
+      const items = normalizeData(response.data);
+      console.log('✅ [SERVICE] Viaje encontrado:', items[0]);
+      return items[0] || null;
+    } catch (err) {
+      console.error('❌ [SERVICE] Error buscando viaje:', err);
+      return null;
+    }
+  },
 
-/**
- * Completes a trip
- * TODO: Connect to Python Backend API - PUT /api/trips/:id/complete
- */
-export const completeTrip = async (tripId: string): Promise<void> => {
-  // TODO: Replace with actual API call
-  // await fetch(`/api/trips/${tripId}/complete`, { method: 'PUT' });
-  
-  return new Promise((resolve) => {
-    setTimeout(resolve, 300);
-  });
+  // 2. Listar viajes disponibles
+  getActiveTrips: async () => {
+    try {
+      console.log('📡 [SERVICE] Solicitando lista de viajes al puerto 8010...');
+      const response = await tripApi.get('/', {
+        params: { status: 'ACTIVE' }
+      });
+      const data = normalizeData(response.data);
+      console.log(`✅ [SERVICE] ${data.length} viajes recibidos.`);
+      return data;
+    } catch (err) {
+      console.error('❌ [SERVICE] Error listando viajes:', err);
+      return [];
+    }
+  },
+
+  // 3. Subirse (POST)
+  boardTrip: async (tripId: number, studentId: string) => {
+    const response = await tripApi.post(`/${tripId}/passengers`, {
+      student_id: String(studentId),
+      fare_amount: 0.25,
+      stop_id: null,
+    });
+    return response.data;
+  },
+
+  // 4. Bajarse (DELETE) con reason
+  leaveVehicle: async (tripId: number | string, studentId: string) => {
+    const response = await tripApi.delete(`/${tripId}/passengers/${studentId}`, {
+      params: { reason: "Descenso estudiante" }
+    });
+    return response.data;
+  }
 };

@@ -1,319 +1,187 @@
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, Navigation, User } from 'lucide-react';
-
+import React, { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { transportService } from '@/services/transportService';
-import { getDriverById } from '@/services/driverService';
-import { getRouteDetails } from '@/services/routeService';
-
 import LiveRouteMap from '@/components/Map/LiveRouteMap';
-
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouteSocket } from '@/hooks/useRouteSocket';
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-
-/* ======================================================
-   SMALL COMPONENT
-====================================================== */
-const InfoCard = ({
-  title,
-  value,
-  subtitle,
-  statusColor = 'text-blue-600',
-}: any) => (
-  <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm flex-1">
-    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
-      {title}
-    </p>
-    <p className="text-base font-bold text-gray-900 dark:text-white truncate">
-      {value}
-    </p>
-    {subtitle && (
-      <p className={`text-xs font-medium mt-1 ${statusColor}`}>
-        {subtitle}
-      </p>
-    )}
-  </div>
-);
-
-/* ======================================================
-   PAGE
-====================================================== */
+import { Loader2, User, Bus, Navigation, LogOut, RefreshCw } from 'lucide-react';
 
 const TransportPage: React.FC = () => {
-  const { token } = useAuth();
+  // Obtenemos métodos extra de Auth si existen (como checkUser o refreshProfile)
+  const { user, token, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  
+  const [loading, setLoading] = useState(false);
+  const [activeRide, setActiveRide] = useState<any>(null);
+  const [availableTrips, setAvailableTrips] = useState<any[]>([]);
 
-  // Estados de carga
-  const [loading, setLoading] = useState(true);
+  // 📍 Coordenadas UCE
+  const defaultLocation = { lat: -0.2017, lng: -78.5057 };
+  const busPos = activeRide?.current_latitude 
+    ? { lat: activeRide.current_latitude, lng: activeRide.current_longitude }
+    : defaultLocation;
 
-  // Datos principales
-  const [myVehicles, setMyVehicles] = useState<any[]>([]);
-  const [availableVehicles, setAvailableVehicles] = useState<any[]>([]);
-  const [driversInfo, setDriversInfo] = useState<Record<string, any>>({});
+  // 🛡️ VERIFICADOR DE USUARIO REAL
+  // Si user.id es 'unknown' o null, no es un usuario válido para abordar
+  const isUserReady = user?.id && user.id !== 'unknown';
 
-  // 🗺️ Estados del mapa
-  const [activePolyline, setActivePolyline] = useState<string | null>(null);
-  const [busLocation, setBusLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const syncData = useCallback(async () => {
+    if (!token) return; 
 
-  // ✅ CORRECCIÓN: Derivamos el viaje activo del estado
-  const activeTrip = myVehicles.length > 0 ? myVehicles[0] : null;
-
-  // ✅ CORRECCIÓN: Llamada única al Hook con los argumentos correctos
-  // Si activeTrip es null, el hook no conectará (eso es correcto)
-  const { lastMessage } = useRouteSocket(token, activeTrip?.id);
-
-  /* ======================================================
-     EFFECTS
-  ====================================================== */
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // 📡 Escuchar ubicación del bus en tiempo real
-  useEffect(() => {
-    if (lastMessage && lastMessage.location) {
-      // ✅ CORRECCIÓN: El backend envía 'location' con 'latitude' y 'longitude'
-      // Adaptamos al formato que espera el mapa
-      setBusLocation({
-        lat: lastMessage.location.latitude,
-        lng: lastMessage.location.longitude,
-      });
-    }
-  }, [lastMessage]);
-
-  /* ======================================================
-     DATA LOAD
-  ====================================================== */
-
-  const loadData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
-      // 1️⃣ Mi viaje activo
-      const myTransportData = await transportService.getMyVehicle();
-      const myRides = Array.isArray(myTransportData)
-        ? myTransportData
-        : myTransportData
-        ? [myTransportData]
-        : [];
-
-      setMyVehicles(myRides);
-
-      if (myRides.length > 0) {
-        const ride = myRides[0];
-
-        // 2️⃣ Conductor
-        if (ride.driver_id) {
-          getDriverById(ride.driver_id).then((driver) =>
-            setDriversInfo((prev) => ({
-              ...prev,
-              [ride.id]: driver,
-            }))
-          );
-        }
-
-        // 3️⃣ Ruta (Polyline)
-        if (ride.route_id) {
-          try {
-            const route = await getRouteDetails(ride.route_id);
-            setActivePolyline(route.polyline);
-          } catch (err) {
-            console.error('Error cargando ruta:', err);
-          }
-        }
-      } else {
-            const activeTrips = await transportService.getActiveTrips();
-            setAvailableVehicles(activeTrips);
+      console.log("🔄 [UI] Sincronizando datos...");
+      
+      // Solo buscamos viaje propio si sabemos quién es el usuario
+      if (isUserReady) {
+        const myTrip = await transportService.getActiveTripByStudent(String(user.id));
+        setActiveRide(myTrip);
       }
+
+      // Siempre cargamos la lista de buses (esto funciona aunque seas 'unknown')
+      const trips = await transportService.getActiveTrips();
+      setAvailableTrips(trips);
+      
     } catch (err) {
-      console.error(err);
+      console.error("❌ [UI] Error sync:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, token, isUserReady]);
+
+  // 🔥 EFECTO INICIAL
+  useEffect(() => {
+    if (!authLoading) {
+      syncData();
+    }
+  }, [authLoading, user?.id, syncData]);
+
+  // === HANDLERS ===
+
+  const handleJoin = async (tripId: number) => {
+    // 🛑 BLOQUEO DE SEGURIDAD EN LA UI
+    if (!isUserReady) {
       toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los datos.',
-        variant: 'destructive',
+        title: 'Cargando perfil...',
+        description: 'Estamos verificando tu identidad. Intenta en unos segundos.',
+        variant: 'destructive' // O warning
       });
+      // Aquí podrías forzar un window.location.reload() si el auth está muy roto
+      console.warn("⛔ Intento de abordaje bloqueado: Usuario unknown");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log(`👤 Subiendo usuario: ${user.id} al viaje ${tripId}`);
+      await transportService.boardTrip(tripId, String(user.id));
+      toast({ title: '¡Subido!', description: 'Has abordado el bus correctamente.' });
+      await syncData();
+    } catch (e: any) {
+      // Mensaje de error amigable
+      const msg = e.response?.data?.detail?.[0]?.msg || e.response?.data?.detail || 'Error al subir.';
+      toast({ title: 'No se pudo subir', description: msg, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  /* ======================================================
-     ACTIONS
-  ====================================================== */
-
-  const handleJoin = async (vehicleId: string) => {
+  const handleLeave = async () => {
+    if (!activeRide || !isUserReady) return;
+    setLoading(true);
     try {
-      await transportService.joinVehicle(vehicleId);
-      toast({
-        title: '¡Te has unido!',
-        description: 'Viaje registrado correctamente.',
-      });
-      loadData();
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'No pudimos asignarte.',
-        variant: 'destructive',
-      });
+      await transportService.leaveVehicle(activeRide.id, String(user.id));
+      toast({ title: 'Bajada registrada' });
+      setActiveRide(null);
+      await syncData();
+    } catch (e) {
+      toast({ title: 'Error', description: 'No se pudo bajar.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLeave = async (vehicleId: string) => {
-    try {
-      await transportService.leaveVehicle(vehicleId);
-      toast({
-        title: 'Viaje cancelado',
-        description: 'Te has bajado de la unidad.',
-      });
-      setMyVehicles([]);
-      setActivePolyline(null);
-      setBusLocation(null);
-      loadData();
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'No pudimos cancelar el viaje.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  /* ======================================================
-     RENDER
-  ====================================================== */
-
-  if (loading) {
-    return (
-      <div className="p-10 text-center animate-pulse">
-        Cargando transporte...
+  // === RENDER ===
+  return (
+    <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col p-4 space-y-4 bg-gray-50 dark:bg-slate-950 relative">
+      
+      {/* HEADER DE ESTADO (Para Debug) */}
+      <div className={`flex justify-between items-center p-2 rounded-lg text-xs ${isUserReady ? 'bg-green-50 text-green-800' : 'bg-orange-50 text-orange-800'}`}>
+        <span className="flex items-center gap-2">
+          {isUserReady ? <User size={14}/> : <Loader2 size={14} className="animate-spin"/>}
+          {isUserReady ? `Usuario: ${user.name}` : 'Cargando perfil de estudiante...'}
+        </span>
+        <Button size="sm" variant="ghost" onClick={syncData} className="h-6 text-xs">
+          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+        </Button>
       </div>
-    );
-  }
 
-  // ==========================================
-  // 🗺️ VISTA MAPA (Viaje Activo)
-  // ==========================================
-  if (myVehicles.length > 0) {
-    const vehicle = myVehicles[0];
-    const driver = driversInfo[vehicle.id];
-
-    return (
-      <div className="h-[calc(100vh-6rem)] flex flex-col p-4 gap-4">
-        {/* HEADER */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-md border flex flex-col md:flex-row justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xl">
-              {driver?.name ? driver.name.charAt(0) : <User />}
-            </div>
-            <div>
-              <h2 className="font-bold text-lg">
-                {driver?.name || 'Conductor'}
-              </h2>
-              <div className="flex gap-2 items-center">
-                <Badge variant="secondary" className="text-xs">
-                  {vehicle.plate}
-                </Badge>
-                <span className="text-xs text-green-600 flex items-center gap-1">
-                  <Navigation size={12} /> En camino
-                </span>
+      {activeRide ? (
+        // VISTA EN RUTA
+        <>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow-sm border flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-100 p-2 rounded-xl text-blue-600"><User size={24} /></div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-gray-400">Conductor</p>
+                <h3 className="font-bold text-sm">{activeRide.driver_name || 'UCE Driver'}</h3>
+              </div>
+              <div className="w-px h-8 bg-gray-200" />
+              <div className="bg-yellow-100 p-2 rounded-xl text-yellow-600"><Bus size={24} /></div>
+              <div>
+                 <p className="text-[10px] uppercase font-bold text-gray-400">Placa</p>
+                 <h3 className="font-bold text-sm">{activeRide.plate}</h3>
               </div>
             </div>
-          </div>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                Bajarme
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  ¿Deseas bajarte?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Perderás tu asiento en la unidad {vehicle.plate}.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => handleLeave(vehicle.id)}
-                  className="bg-red-600"
-                >
-                  Sí, bajarme
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-
-        {/* MAPA */}
-        <div className="flex-1 rounded-2xl overflow-hidden border shadow-inner relative">
-          <LiveRouteMap
-            routePolyline={activePolyline}
-            busLocation={busLocation}
-          />
-
-          {!activePolyline && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-              <p className="text-gray-500 flex items-center gap-2">
-                <AlertCircle size={20} /> Esperando datos de ruta...
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ==========================================
-  // 📋 VISTA LISTA (Sin Viaje)
-  // ==========================================
-  return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6">
-      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg flex gap-3">
-        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-        <div>
-          <h3 className="font-bold">Sin transporte asignado</h3>
-          <p className="text-sm">
-            Selecciona una unidad para iniciar tu viaje.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {availableVehicles.map((bus) => (
-          <div
-            key={bus.id}
-            className="bg-white border p-6 rounded-2xl shadow-sm"
-          >
-            <h3 className="text-lg font-bold">{bus.plate}</h3>
-            <p className="text-sm text-gray-500 mb-4">{bus.model}</p>
-            <Button
-              onClick={() => handleJoin(bus.id)}
-              className="w-full bg-blue-900 text-white"
-            >
-              Subirme a este bus
+            <Button variant="destructive" onClick={handleLeave} className="font-bold shadow-red-100 shadow-lg" disabled={!isUserReady || loading}>
+              <LogOut size={18} className="mr-2" /> BAJARME
             </Button>
           </div>
-        ))}
-      </div>
+          <div className="flex-1 rounded-3xl overflow-hidden border shadow-lg relative">
+            <LiveRouteMap routePolyline={activeRide.polyline} busLocation={busPos} />
+          </div>
+        </>
+      ) : (
+        // VISTA LISTA
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2 px-1">
+            <Navigation className="text-blue-600" /> Unidades Disponibles
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pb-20 pr-2">
+            {availableTrips.length > 0 ? (
+              availableTrips.map((trip) => (
+                <div key={trip.id} className="bg-white dark:bg-slate-900 border p-5 rounded-[24px] shadow-sm hover:border-blue-400 transition-all">
+                  <div className="flex justify-between mb-4">
+                    <div className="bg-slate-900 text-white px-3 py-1 rounded-xl font-black">{trip.plate}</div>
+                    <Badge className="bg-green-100 text-green-700">ACTIVO</Badge>
+                  </div>
+                  <div className="mb-4 text-sm space-y-1 text-gray-600">
+                    <p>👨‍✈️ {trip.driver_name || 'Conductor UCE'}</p>
+                    <p>💺 {trip.current_passenger_count || 0} / {trip.max_passengers || 45}</p>
+                  </div>
+                  
+                  {/* Botón que se deshabilita si no hay usuario */}
+                  <Button 
+                    onClick={() => handleJoin(trip.id)} 
+                    className="w-full bg-blue-600 text-white font-bold rounded-xl h-12 disabled:opacity-50"
+                    disabled={loading || !isUserReady} // <--- AQUÍ ESTÁ LA CLAVE
+                  >
+                    {!isUserReady ? 'Cargando usuario...' : 'SUBIRME'}
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center opacity-60">
+                <Bus size={64} className="mx-auto mb-4 text-slate-300" />
+                <p className="font-bold">No hay unidades en ruta</p>
+                <Button variant="link" onClick={syncData}>Refrescar</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

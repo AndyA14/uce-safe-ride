@@ -1,138 +1,146 @@
-import axios, { InternalAxiosRequestConfig } from 'axios';
-import { StudentProfile, Vehicle } from '@/types/transport';
+import axios from 'axios';
 
-/* =========================
-   CONFIG AXIOS - VEHICLE SERVICE
-========================= */
-const VEHICLE_API_URL =
-  import.meta.env.VITE_VEHICLE_SERVICE_URL || 'http://localhost:8004/api/v1/vehicles';
-
-const vehicleApi = axios.create({
-  baseURL: VEHICLE_API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// Interceptor Token Vehicle
-vehicleApi.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      if (!config.headers) config.headers = {} as any;
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-/* =========================
-   CONFIG AXIOS - STUDENT SERVICE
-========================= */
-const STUDENT_API_URL =
-  import.meta.env.VITE_STUDENT_SERVICE_URL || 'http://localhost:8002/api/v1/students';
-
-const studentApi = axios.create({
-  baseURL: STUDENT_API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// Interceptor Token Student
-studentApi.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      if (!config.headers) config.headers = {} as any;
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-/* =========================
-   🟢 NUEVO: TRIP SERVICE API
-========================= */
-// Apuntamos al puerto 8010 que es el Trip Service
-const TRIP_API_URL =
-  import.meta.env.VITE_TRIP_SERVICE_URL || 'http://localhost:8010/api/v1/trips';
+/**
+ * 🌐 Base URL del microservicio de transporte
+ */
+const TRIP_API_URL = 'http://127.0.0.1:8010/api/v1/trips';
 
 const tripApi = axios.create({
   baseURL: TRIP_API_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 5000,
 });
 
-// Interceptor Token Trip
-tripApi.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      if (!config.headers) config.headers = {} as any;
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+/**
+ * 🔐 Interceptor JWT
+ */
+tripApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-/* =========================
-   SERVICIO UNIFICADO
-========================= */
+/**
+ * 🧹 Normalizador de respuestas
+ */
+const normalizeData = (data: any) => {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.items)) return data.items;
+  return [];
+};
+
 export const transportService = {
-  // 1️⃣ Perfil
-  getMyProfile: async (): Promise<StudentProfile> => {
-    const response = await studentApi.get<StudentProfile>('/me');
-    return response.data;
-  },
+  /**
+   * 1️⃣ Obtener viaje activo del estudiante
+   * ✅ VERSIÓN FINAL: Consulta directa al endpoint "Mis Viajes"
+   */
+  getActiveTripByStudent: async (studentId: string) => {
+    if (!studentId || studentId === 'unknown') return null;
 
-  // 2️⃣ Mi Vehículo (Viaje activo del estudiante)
-  getMyVehicle: async (): Promise<Vehicle | null> => {
     try {
-      // Nota: Idealmente deberíamos preguntar a TripService si el estudiante tiene un viaje activo
-      // Pero mantenemos tu lógica actual de VehicleService por ahora si funciona para ti.
-      const response = await vehicleApi.get<Vehicle>('/student/me');
-      return response.data || null;
-    } catch (error: any) {
+      console.log(`📡 Consultando mis viajes activos en el Backend...`);
+
+      // 1. Preguntamos al endpoint específico de "Mis Viajes"
+      const myTripsResponse = await tripApi.get('/students/me/trips', {
+        params: { active_only: true }
+      });
+
+      const myTrips = normalizeData(myTripsResponse.data);
+
+      if (myTrips.length > 0) {
+        // Tomamos el primero
+        const myPassengerRecord = myTrips[0];
+        const currentTripId = myPassengerRecord.trip_id;
+
+        console.log(`✅ ¡Encontrado! Estás en el viaje ID: ${currentTripId}`);
+
+        // 2. Traemos detalles completos de ese viaje
+        const allTrips = await transportService.getActiveTrips();
+        const fullTripDetails = allTrips.find((t: any) => t.id === currentTripId);
+
+        return fullTripDetails || null;
+      }
+
+      console.log('✨ No tienes viajes activos actualmente.');
+      return null;
+
+    } catch (error) {
+      console.error('❌ Error buscando viaje personal:', error);
       return null;
     }
   },
 
-  // 3️⃣ Unirse
-  joinVehicle: async (vehicleId: string) => {
-    const response = await vehicleApi.post(`/${vehicleId}/board`);
-    return response.data;
-  },
-
-  // 4️⃣ Bajarse
-  leaveVehicle: async (vehicleId: string) => {
-    const response = await vehicleApi.post(`/${vehicleId}/leave`);
-    return response.data;
-  },
-
   /**
-   * 🟢 5️⃣ OBTENER VIAJES ACTIVOS
-   * En lugar de traer todos los vehículos, traemos solo los viajes con status=ACTIVE
+   * 2️⃣ Listar viajes activos
    */
   getActiveTrips: async () => {
     try {
-      console.log('📡 Consultando viajes activos al Trip Service...');
-      // Llamamos al endpoint GET /trips?status=ACTIVE
+      console.log('📡 Consultando viajes activos...');
       const response = await tripApi.get('/', {
-        params: { status: 'ACTIVE' }
+        params: { status: 'ACTIVE' },
       });
-      
-      // La respuesta es paginada: { items: [...], total: ... }
-      // Devolvemos los items (los viajes)
-      return response.data.items || [];
+
+      const data = normalizeData(response.data);
+      console.log('✅ Viajes recibidos:', data);
+
+      return data;
     } catch (error) {
-      console.error('❌ Error obteniendo viajes activos:', error);
+      console.error('❌ Error listando viajes:', error);
       return [];
     }
   },
 
-  // Mantenemos este por compatibilidad, pero el frontend debería usar getActiveTrips
-  getAllVehicles: async (): Promise<Vehicle[]> => {
-    const response = await vehicleApi.get<Vehicle[]>('/');
-    return Array.isArray(response.data) ? response.data : [];
+  /**
+   * 3️⃣ Subirse al vehículo (POST)
+   */
+  boardTrip: async (tripId: number, studentId: string) => {
+    if (!studentId || studentId === 'unknown') {
+      console.warn('⛔ Intento de abordar con usuario desconocido');
+      throw new Error('Usuario no identificado. Recarga la página.');
+    }
+
+    const payload = {
+      student_id: String(studentId),
+      fare_amount: 0.25,
+      stop_id: null,
+    };
+
+    try {
+      console.log(`🚌 Abordando viaje ${tripId}`, payload);
+      const response = await tripApi.post(`/${tripId}/passengers`, payload);
+      console.log('✅ Abordaje exitoso:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al abordar (Backend dice):', JSON.stringify(error.response?.data, null, 2));
+      throw error;
+    }
+  },
+
+  /**
+   * 4️⃣ Bajarse del vehículo (DELETE)
+   */
+  leaveVehicle: async (tripId: number | string, studentId: string) => {
+    if (!studentId || studentId === 'unknown') {
+      throw new Error('Usuario no identificado.');
+    }
+
+    try {
+      console.log(`🚪 Bajando del viaje ${tripId}...`);
+
+      const response = await tripApi.delete(`/${tripId}/passengers/${studentId}`, {
+        params: { reason: 'Descenso normal del estudiante' },
+      });
+
+      console.log('✅ Descenso exitoso:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error al bajar (Backend dice):', JSON.stringify(error.response?.data || error.message, null, 2));
+      throw error;
+    }
   },
 };
 
