@@ -16,6 +16,8 @@ from app.db.base import Base
 # Kafka (opcional)
 from app.core.kafka_producer import kafka_producer
 
+# Consumidor de ubicación
+from app.core.location_consumer import location_consumer
 
 # -------------------------------------------------------------------------
 # LOGGING
@@ -36,7 +38,6 @@ def wait_for_db(max_retries: int = 15, delay: int = 2) -> None:
     Evita crash en Base.metadata.create_all()
     """
     retries = 0
-
     while retries < max_retries:
         try:
             logger.info(f"⏳ Intentando conectar a DB ({retries + 1}/{max_retries})...")
@@ -49,7 +50,6 @@ def wait_for_db(max_retries: int = 15, delay: int = 2) -> None:
                 f"⚠️ DB no lista. Reintentando en {delay}s... ({retries}/{max_retries})"
             )
             time.sleep(delay)
-
     raise Exception("❌ No se pudo conectar a la base de datos tras varios intentos.")
 
 
@@ -74,13 +74,29 @@ async def lifespan(app: FastAPI):
             f"📡 Kafka habilitado | Bootstrap servers: {settings.KAFKA_BOOTSTRAP_SERVERS}"
         )
 
-    logger.info("✅ Trip Service listo para recibir peticiones")
+    # 4️⃣ Iniciar consumidor de ubicación
+    try:
+        logger.info("🛰️ Iniciando consumidor de ubicación...")
+        await location_consumer.start()
+        logger.info("✅ Consumidor de ubicación activo")
+    except Exception as e:
+        logger.error(f"❌ Error iniciando consumidor de ubicación: {e}")
 
+    logger.info("✅ Trip Service listo para recibir peticiones")
     yield
 
     # ------------------ SHUTDOWN ------------------
     logger.info("🛑 Apagando Trip Service...")
 
+    # Detener consumidor de ubicación
+    try:
+        logger.info("🛰️ Deteniendo consumidor de ubicación...")
+        await location_consumer.stop()
+        logger.info("✅ Consumidor de ubicación detenido")
+    except Exception as e:
+        logger.warning(f"⚠️ Error deteniendo consumidor de ubicación: {e}")
+
+    # Cerrar Kafka
     try:
         kafka_producer.close()
         logger.info("📴 Kafka producer cerrado correctamente")
@@ -156,6 +172,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8010,
         reload=True,
     )

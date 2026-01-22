@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { transportService } from '@/services/transportService';
@@ -8,41 +8,35 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Bus, Navigation, LogOut, RefreshCw } from 'lucide-react';
 
 const TransportPage: React.FC = () => {
-  // Obtenemos métodos extra de Auth si existen (como checkUser o refreshProfile)
   const { user, token, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  
+
   const [loading, setLoading] = useState(false);
   const [activeRide, setActiveRide] = useState<any>(null);
   const [availableTrips, setAvailableTrips] = useState<any[]>([]);
 
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+
   // 📍 Coordenadas UCE
   const defaultLocation = { lat: -0.2017, lng: -78.5057 };
-  const busPos = activeRide?.current_latitude 
+  const busPos = activeRide?.current_latitude
     ? { lat: activeRide.current_latitude, lng: activeRide.current_longitude }
     : defaultLocation;
 
-  // 🛡️ VERIFICADOR DE USUARIO REAL
-  // Si user.id es 'unknown' o null, no es un usuario válido para abordar
+  // 🛡️ Usuario válido
   const isUserReady = user?.id && user.id !== 'unknown';
 
   const syncData = useCallback(async () => {
-    if (!token) return; 
-
+    if (!token) return;
     setLoading(true);
     try {
       console.log("🔄 [UI] Sincronizando datos...");
-      
-      // Solo buscamos viaje propio si sabemos quién es el usuario
       if (isUserReady) {
         const myTrip = await transportService.getActiveTripByStudent(String(user.id));
         setActiveRide(myTrip);
       }
-
-      // Siempre cargamos la lista de buses (esto funciona aunque seas 'unknown')
       const trips = await transportService.getActiveTrips();
       setAvailableTrips(trips);
-      
     } catch (err) {
       console.error("❌ [UI] Error sync:", err);
     } finally {
@@ -52,22 +46,51 @@ const TransportPage: React.FC = () => {
 
   // 🔥 EFECTO INICIAL
   useEffect(() => {
-    if (!authLoading) {
-      syncData();
-    }
+    if (!authLoading) syncData();
   }, [authLoading, user?.id, syncData]);
 
-  // === HANDLERS ===
+  // 🔄 EFECTO DE POLLING
+  useEffect(() => {
+    if (activeRide && isUserReady) {
+      console.log("🛰️ Iniciando radar de seguimiento para Viaje:", activeRide.id);
 
+      const trackBus = async () => {
+        try {
+          const updatedTrip = await transportService.getActiveTripByStudent(String(user?.id));
+          if (updatedTrip) {
+            if (
+              updatedTrip.current_latitude !== activeRide.current_latitude ||
+              updatedTrip.current_longitude !== activeRide.current_longitude
+            ) {
+              console.log("🚌 ¡El bus se movió!", updatedTrip.current_latitude, updatedTrip.current_longitude);
+              setActiveRide(updatedTrip);
+            }
+          }
+        } catch (error) {
+          console.error("⚠️ Error rastreando bus:", error);
+        }
+      };
+
+      trackBus();
+      pollingInterval.current = setInterval(trackBus, 3000);
+    }
+
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
+        console.log("🛑 Radar detenido");
+      }
+    };
+  }, [activeRide?.id, isUserReady, user?.id]);
+
+  // === HANDLERS ===
   const handleJoin = async (tripId: number) => {
-    // 🛑 BLOQUEO DE SEGURIDAD EN LA UI
     if (!isUserReady) {
       toast({
         title: 'Cargando perfil...',
         description: 'Estamos verificando tu identidad. Intenta en unos segundos.',
-        variant: 'destructive' // O warning
+        variant: 'destructive'
       });
-      // Aquí podrías forzar un window.location.reload() si el auth está muy roto
       console.warn("⛔ Intento de abordaje bloqueado: Usuario unknown");
       return;
     }
@@ -79,7 +102,6 @@ const TransportPage: React.FC = () => {
       toast({ title: '¡Subido!', description: 'Has abordado el bus correctamente.' });
       await syncData();
     } catch (e: any) {
-      // Mensaje de error amigable
       const msg = e.response?.data?.detail?.[0]?.msg || e.response?.data?.detail || 'Error al subir.';
       toast({ title: 'No se pudo subir', description: msg, variant: 'destructive' });
     } finally {
@@ -105,8 +127,8 @@ const TransportPage: React.FC = () => {
   // === RENDER ===
   return (
     <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col p-4 space-y-4 bg-gray-50 dark:bg-slate-950 relative">
-      
-      {/* HEADER DE ESTADO (Para Debug) */}
+
+      {/* HEADER DE ESTADO */}
       <div className={`flex justify-between items-center p-2 rounded-lg text-xs ${isUserReady ? 'bg-green-50 text-green-800' : 'bg-orange-50 text-orange-800'}`}>
         <span className="flex items-center gap-2">
           {isUserReady ? <User size={14}/> : <Loader2 size={14} className="animate-spin"/>}
@@ -143,7 +165,7 @@ const TransportPage: React.FC = () => {
           </div>
         </>
       ) : (
-        // VISTA LISTA
+        // VISTA LISTA DE UNIDADES
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           <h2 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-2 px-1">
             <Navigation className="text-blue-600" /> Unidades Disponibles
@@ -161,12 +183,10 @@ const TransportPage: React.FC = () => {
                     <p>👨‍✈️ {trip.driver_name || 'Conductor UCE'}</p>
                     <p>💺 {trip.current_passenger_count || 0} / {trip.max_passengers || 45}</p>
                   </div>
-                  
-                  {/* Botón que se deshabilita si no hay usuario */}
                   <Button 
                     onClick={() => handleJoin(trip.id)} 
                     className="w-full bg-blue-600 text-white font-bold rounded-xl h-12 disabled:opacity-50"
-                    disabled={loading || !isUserReady} // <--- AQUÍ ESTÁ LA CLAVE
+                    disabled={loading || !isUserReady}
                   >
                     {!isUserReady ? 'Cargando usuario...' : 'SUBIRME'}
                   </Button>

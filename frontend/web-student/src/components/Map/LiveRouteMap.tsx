@@ -9,7 +9,6 @@ import {
 /* ======================================================
    TYPES
 ====================================================== */
-
 interface LiveRouteMapProps {
   routePolyline: string | null;
   busLocation: { lat: number; lng: number } | null;
@@ -18,7 +17,6 @@ interface LiveRouteMapProps {
 /* ======================================================
    CONSTANTS
 ====================================================== */
-
 const containerStyle: React.CSSProperties = {
   width: '100%',
   height: '100%',
@@ -28,13 +26,12 @@ const containerStyle: React.CSSProperties = {
 // Coordenadas por defecto (Quito - UCE)
 const centerQuito = { lat: -0.210, lng: -78.49 };
 
-// ✅ Libraries estática, definida fuera del componente
+// Libraries estática para Google Maps
 const libraries: ('places' | 'geometry')[] = ['geometry'];
 
 /* ======================================================
    COMPONENT
 ====================================================== */
-
 const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
   routePolyline,
   busLocation,
@@ -45,7 +42,7 @@ const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
       import.meta.env.VITE_GOOGLE_MAPS_KEY ||
       process.env.REACT_APP_GOOGLE_MAPS_KEY ||
       '',
-    libraries: libraries, // ✅ Referencia estática
+    libraries: libraries,
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -59,7 +56,7 @@ const LiveRouteMap: React.FC<LiveRouteMapProps> = ({
   }, [routePolyline, isLoaded]);
 
   /**
-   * 2️⃣ Ajustar la cámara para mostrar toda la ruta
+   * 2️⃣ Ajustar la cámara para mostrar toda la ruta al cargar
    */
   const onLoad = useCallback(
     (mapInstance: google.maps.Map) => {

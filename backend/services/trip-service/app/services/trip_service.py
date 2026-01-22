@@ -224,8 +224,8 @@ class TripService:
             raise InvalidTripStatusException(trip.status, "actualizar ubicación")
         
         # Actualizar campos de ubicación si existen
-        # trip.current_latitude = location.latitude
-        # trip.current_longitude = location.longitude
+        trip.current_latitude = location.latitude
+        trip.current_longitude = location.longitude
         
         self.db.commit()
         self.db.refresh(trip)
