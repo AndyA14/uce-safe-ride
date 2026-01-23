@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { LoginResponse, UserRole, User } from '@/types/user';
 import { getStudentProfile } from './studentService';
-import { getDriverProfile } from '@/services/driverService';
+import driverService from '@/services/driverService'; // Importación correcta del servicio
 
 /* =========================
    CONFIG
@@ -126,7 +126,8 @@ export const loginUser = async (
           semester: student.semester,
         };
       } else if (role === 'DRIVER') {
-        const driver = await getDriverProfile();
+        // Corregido: Usar driverService.getDriverProfile()
+        const driver = await driverService.getDriverProfile(); // Cambié la llamada aquí
         if (!driver) {
           throw new Error('Perfil de conductor no encontrado');
         }

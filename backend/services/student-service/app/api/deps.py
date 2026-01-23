@@ -1,11 +1,10 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
-from uuid import UUID
+# 🚨 Eliminar import de UUID
 from app.core.config import settings
 
 security = HTTPBearer()
-
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -24,7 +23,7 @@ def get_current_user(
             detail="Invalid or expired token",
         )
 
-    user_id = payload.get("sub")
+    user_id = payload.get("sub")  # student_id viene aquí
     role = payload.get("role")
 
     if not user_id or not role:
@@ -33,12 +32,12 @@ def get_current_user(
             detail="Invalid token payload",
         )
 
+    # 🚨 CORRECCIÓN: Devolver string, no UUID
     return {
-        "user_id": UUID(user_id),
+        "user_id": str(user_id),  # Convertir a string
         "role": role,
-        "sub": payload.get("sub"),
+        "sub": str(user_id),
     }
-
 
 def require_role(*allowed_roles: str):
     def dependency(
@@ -50,5 +49,4 @@ def require_role(*allowed_roles: str):
                 detail="Insufficient permissions",
             )
         return current_user
-
     return dependency

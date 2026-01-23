@@ -1,33 +1,34 @@
-export type UserRole = 'STUDENT' | 'DRIVER' | 'ADMIN'
-export type DriverStatus = 'AVAILABLE' | 'ON_ROUTE' | 'OFFLINE'
+// src/types/user.ts
+
+export type UserRole = 'STUDENT' | 'DRIVER' | 'ADMIN';
+export type DriverStatus = 'AVAILABLE' | 'ON_ROUTE' | 'OFFLINE';
 
 /* =========================
    USUARIO BASE (PLANO)
 ========================= */
 
 export interface User {
-  id: string
-
-  // Algunos backends devuelven ambos, soportamos los dos
-  user_id?: string
-
-  name: string
-  email: string
-  role: UserRole
+  id: string;                    // Auth ID
+  driver_id?: string | null;      // ID operativo (opcional, puede ser null o no asignado)
+  
+  // Info básica
+  email: string;
+  name: string;
+  role: UserRole;
 
   // -------- STUDENT --------
-  student_id?: string
-  career?: string
-  semester?: number
+  student_id?: string;
+  career?: string;
+  semester?: number;
 
   // -------- DRIVER --------
-  ci?: string
-  license_number?: string
-  phone?: string
-  status?: DriverStatus
+  ci?: string;
+  license_number?: string;
+  phone?: string;
+  status?: DriverStatus;
 
   // UI
-  avatar?: string
+  avatar?: string;
 }
 
 /* =========================
@@ -35,35 +36,38 @@ export interface User {
 ========================= */
 
 export interface LoginResponse {
-  user: User
-  access_token: string
+  user: User;
+  access_token: string;
 }
 
 export interface LoginCredentials {
-  email: string
-  password: string
-  role: UserRole
+  email: string;
+  password: string;
+  role: UserRole;
 }
 
 /* =========================
    PERFILES (DOMINIO)
 ========================= */
 
-// Perfil estudiante (si luego lo separas del User)
 export interface StudentProfile {
-  full_name: string
-  email: string
-  phone?: string
+  full_name: string;
+  email: string;
+  phone?: string;
+  student_id?: string;
+  career?: string;
+  semester?: number;
 }
 
-// Perfil conductor (opcional, útil para /drivers/me)
 export interface DriverProfile {
-  id: string
-  user_id: string
-  name: string
-  license_number: string
-  phone?: string
-  status: DriverStatus
+  id: string;              // Driver ID interno (para servicios)
+  user_id: string;         // Auth User ID (del token)
+  name: string;
+  email: string;
+  license_number?: string;
+  phone?: string;
+  status?: DriverStatus;
+  created_at?: Date;       // Fecha de creación (ahora es de tipo Date)
 }
 
 /* =========================
@@ -71,42 +75,42 @@ export interface DriverProfile {
 ========================= */
 
 export interface BusStop {
-  id: string
-  name: string
-  studentsWaiting: number
-  estimatedArrival: string
+  id: string;
+  name: string;
+  studentsWaiting: number;
+  estimatedArrival: string;
 }
 
-export type BusStatus = 'active' | 'inactive' | 'maintenance'
+export type BusStatus = 'active' | 'inactive' | 'maintenance';
 
 export interface Bus {
-  id: string
-  name: string
-  driver: string
-  status: BusStatus
-  currentRoute: string
-  passengers: number
-  capacity: number
+  id: string;
+  name: string;
+  driver: string;
+  status: BusStatus;
+  currentRoute: string;
+  passengers: number;
+  capacity: number;
 }
 
 export interface Trip {
-  id: string
-  date: string
-  route: string
-  pickup: string
-  dropoff: string
-  duration: string
+  id: string;
+  date: Date;              // Fecha (ahora es de tipo Date)
+  route: string;
+  pickup: string;
+  dropoff: string;
+  duration: string;
 }
 
 /* =========================
    ALERTAS / UI
 ========================= */
 
-export type AlertType = 'info' | 'warning' | 'danger'
+export type AlertType = 'info' | 'warning' | 'danger' | 'custom';  // Se añadió 'custom' para mayor flexibilidad
 
 export interface Alert {
-  id: string
-  type: AlertType
-  message: string
-  time: string
+  id: string;
+  type: AlertType;
+  message: string;
+  time: string;
 }

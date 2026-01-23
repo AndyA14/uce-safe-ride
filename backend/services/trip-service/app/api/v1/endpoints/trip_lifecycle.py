@@ -13,7 +13,6 @@ from app.api.v1.endpoints.dependencies import (
     get_trip_service, verify_trip_ownership
 )
 from app.db.models import Trip
-# 🟢 IMPORTAMOS EL MANAGER
 from app.core.socket_manager import manager
 
 router = APIRouter()
@@ -27,14 +26,10 @@ router = APIRouter()
 )
 async def start_trip(
     trip_id: int,
-    start_data: TripStartRequest,
     trip: Trip = Depends(verify_trip_ownership),
     trip_service: TripService = Depends(get_trip_service)
 ):
-    """
-    Inicia un viaje.
-    """
-    started_trip = trip_service.start_trip(trip_id, start_data)
+    started_trip = trip_service.start_trip(trip_id)
     return TripResponse.from_orm_with_computed(started_trip)
 
 
@@ -42,19 +37,17 @@ async def start_trip(
     "/{trip_id}/complete",
     response_model=TripResponse,
     summary="Completar viaje",
-    description="Finaliza el viaje exitosamente y emite evento trip.completed"
+    description="Finaliza el viaje exitosamente"
 )
 async def complete_trip(
     trip_id: int,
-    complete_data: TripCompleteRequest,
     trip: Trip = Depends(verify_trip_ownership),
     trip_service: TripService = Depends(get_trip_service)
 ):
-    """
-    Completa un viaje exitosamente.
-    """
-    completed_trip = trip_service.complete_trip(trip_id, complete_data)
+    completed_trip = trip_service.complete_trip(trip_id)
     return TripResponse.from_orm_with_computed(completed_trip)
+
+
 
 
 @router.post(
@@ -63,6 +56,9 @@ async def complete_trip(
     summary="Cancelar viaje",
     description="Cancela el viaje antes de completarlo"
 )
+
+
+
 async def cancel_trip(
     trip_id: int,
     cancel_data: TripCancelRequest,

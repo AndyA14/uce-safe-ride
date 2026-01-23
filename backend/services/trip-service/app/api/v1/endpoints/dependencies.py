@@ -10,6 +10,7 @@ from app.services.trip_service import TripService
 from app.services.passenger_service import PassengerService
 from app.services.validation_service import ValidationService
 from app.services.event_publisher import event_publisher
+from app.core.security import get_current_user, TokenData
 
 logger = logging.getLogger(__name__)
 
@@ -52,17 +53,15 @@ async def verify_trip_ownership(
     trip: Trip = Depends(get_trip_or_404),
     current_user: TokenData = Depends(get_current_user),
 ) -> Trip:
-    # 1️⃣ Verificar que el usuario sea conductor
-    if current_user.role.lower() != "driver":
+    # ✅ Solo validamos rol
+    if current_user.role.upper() != "DRIVER":
         raise HTTPException(
-            status_code=403, 
-            detail="Solo conductores pueden acceder a este recurso"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo conductores pueden operar viajes"
         )
-    
 
     logger.info(
-        f" Driver {current_user.user_id} accediendo a trip {trip.id} "
-        f"(sin validar propiedad)"
+        f"Driver {current_user.user_id} accediendo a trip {trip.id} (sin validar propiedad)"
     )
-    
+
     return trip

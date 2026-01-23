@@ -1,111 +1,153 @@
 import axios from 'axios';
 
-/* =========================
-   TIPOS
-========================= */
-export interface DriverProfile {
-  id: string;
-  auth_user_id?: string;   // Opcional si tu backend no lo devuelve
-  name: string;            // CORRECCIÓN: el backend usa 'name'
-  email?: string;
-  phone?: string;
-  license_number?: string;
-  ci?: string;
-  status?: string;
-}
+/* ======================================================
+   CONFIGURACIÓN - Driver Service (Puerto 8005)
+====================================================== */
+const DRIVER_API_URL = 'http://localhost:8005/api/v1';
 
-/* =========================
-   CONFIG AXIOS  
-========================= */
-const API_URL =
-  import.meta.env.VITE_DRIVER_SERVICE_URL || 'http://localhost:8005/api/v1/drivers';
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// ✅ Interceptor para token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log('✅ [DriverService] Token agregado al request');
-  }
-  return config;
-});
-
-// ✅ Interceptor de respuesta para logging
-api.interceptors.response.use(
-  (response) => {
-    console.log('✅ [DriverService] Response:', response.status, response.data);
-    return response;
+const driverHttp = axios.create({
+  baseURL: DRIVER_API_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  (error) => {
-    console.error('❌ [DriverService] Error:', {
-      status: error.response?.status,
-      data: error.response?.data,
-      url: error.config?.url
-    });
-    return Promise.reject(error);
-  }
+  timeout: 10000, // 10 segundos
+});
+
+// Interceptor para JWT automático
+driverHttp.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
-/* =========================
-   FUNCIONES INDIVIDUALES
-========================= */
+/* ======================================================
+   TYPES
+====================================================== */
+export interface DriverProfile {
+  id: string;              // ← Driver ID interno (para servicios de negocio)
+  user_id: string;         // ← Auth User ID (del token)
+  name: string;
+  email: string;
+  phone?: string;
+  license_number?: string;
+  license_expiry?: string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
-/**
- * 1️⃣ Obtener un conductor por su ID
- * @param driverId - UUID del conductor
- */
-export const getDriverById = async (driverId: string): Promise<DriverProfile | null> => {
-  try {
-    console.log(`🚗 [DriverService] Obteniendo conductor con ID ${driverId}...`);
-    const response = await api.get<DriverProfile>(`/${driverId}`);
-    console.log('✅ [DriverService] Conductor obtenido:', response.data);
-    return response.data;
-  } catch (error) {
-    console.warn('❌ [DriverService] No se pudo cargar info del conductor', error);
-    return null;
-  }
-};
+export interface DriverProfileUpdate {
+  name?: string;
+  phone?: string;
+  license_number?: string;
+  license_expiry?: string;
+}
 
-/**
- * 2️⃣ Obtener perfil del conductor actual (/me)
- */
-export const getDriverProfile = async (): Promise<DriverProfile> => {
-  try {
-    console.log('🚗 [DriverService] Obteniendo perfil de conductor...');
-    const response = await api.get<DriverProfile>('/me');
-    console.log('✅ [DriverService] Perfil obtenido:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ [DriverService] Error obteniendo perfil:', error);
-    throw error;
-  }
-};
-
-/**
- * 3️⃣ Actualizar perfil del conductor (/me)
- */
-export const updateDriverProfile = async (data: Partial<DriverProfile>): Promise<DriverProfile> => {
-  try {
-    console.log('🚗 [DriverService] Actualizando perfil de conductor...');
-    const response = await api.put<DriverProfile>('/me', data);
-    console.log('✅ [DriverService] Perfil actualizado:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ [DriverService] Error actualizando perfil:', error);
-    throw error;
-  }
-};
-
-/* =========================
-   OBJETO driverService (opcional)
-========================= */
+/* ======================================================
+   SERVICE
+====================================================== */
 export const driverService = {
-  getDriverById,
-  getDriverProfile,
-  updateDriverProfile,
+  /**
+   * 🔑 MÉTODO CRÍTICO: Obtiene el perfil del conductor actual
+   * Endpoint: GET /api/v1/drivers/me
+   * 
+   * Este método resuelve el mapeo: Auth User ID → Driver ID
+   */
+  getDriverProfile: async (): Promise<DriverProfile> => {
+    try {
+      console.log('='.repeat(60));
+      console.log('🔍 OBTENIENDO PERFIL DE CONDUCTOR');
+      console.log('='.repeat(60));
+      console.log('Endpoint: GET /api/v1/drivers/me');
+      console.log('Puerto: 8005');
+
+      const response = await driverHttp.get<DriverProfile>('/drivers/me');
+
+      console.log('✅ Perfil recibido:', {
+        driver_id: response.data.id,
+        auth_user_id: response.data.user_id,
+        name: response.data.name,
+        email: response.data.email,
+      });
+      console.log('='.repeat(60));
+
+      return response.data;
+    } catch (error: any) {
+      console.error('='.repeat(60));
+      console.error('❌ ERROR OBTENIENDO PERFIL DE CONDUCTOR');
+      console.error('='.repeat(60));
+      
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Data:', error.response.data);
+      } else if (error.request) {
+        console.error('Sin respuesta del servidor');
+        console.error('¿Está corriendo el Driver Service en puerto 8005?');
+      } else {
+        console.error('Error:', error.message);
+      }
+      console.error('='.repeat(60));
+      
+      throw error;
+    }
+  },
+
+  /**
+   * Actualiza el perfil del conductor
+   */
+  updateDriverProfile: async (
+    data: DriverProfileUpdate
+  ): Promise<DriverProfile> => {
+    try {
+      console.log('📝 Actualizando perfil de conductor...');
+      
+      const response = await driverHttp.put<DriverProfile>(
+        '/drivers/me',
+        data
+      );
+
+      console.log('✅ Perfil actualizado');
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error actualizando perfil:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Obtiene el historial de viajes del conductor
+   */
+  getDriverHistory: async (driverId: string) => {
+    try {
+      console.log(`📜 Obteniendo historial del conductor ${driverId}...`);
+      
+      const response = await driverHttp.get(`/drivers/${driverId}/trips`);
+      
+      console.log(`✅ Historial obtenido: ${response.data.length} viajes`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error obteniendo historial:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Obtiene estadísticas del conductor
+   */
+  getDriverStats: async (driverId: string) => {
+    try {
+      const response = await driverHttp.get(`/drivers/${driverId}/stats`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error);
+      return null;
+    }
+  },
 };
+
+export default driverService;

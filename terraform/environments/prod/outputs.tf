@@ -1,7 +1,2 @@
-output "environment" {
-  value = var.environment
-}
-
-output "vpc_id" {
-  value = module.networking.vpc_id
-}
+output "alb_dns" { value = module.load_balancer.alb_dns }
+output "asg_names" { value = module.microservices.asg_names }

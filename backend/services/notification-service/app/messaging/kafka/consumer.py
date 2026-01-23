@@ -1,64 +1,45 @@
-from datetime import datetime
 import json
 import time
 from kafka import KafkaConsumer
 from kafka.errors import NoBrokersAvailable
-from core.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPICS
-from services.notification_service import process_event
-from messaging.rabbitmq.publisher import publish_notification  
-from db.mongo import notifications_collection 
+from app.core.config import settings
+from app.services.notification_service import process_event 
 
 def start_kafka_consumer():
-    print("Starting Kafka consumer for Notification Service...")
+    """Inicia el consumidor de Kafka."""
+    print("🚀 Iniciando Consumidor Kafka (Notification)...", flush=True)
+
+    TOPICS = [settings.KAFKA_TOPIC_TRIPS] 
 
     while True:
         try:
             consumer = KafkaConsumer(
-                *KAFKA_TOPICS,
-                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-                group_id="notification-service",
-                auto_offset_reset="earliest",
-                enable_auto_commit=True,
+                *TOPICS,
+                bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+                group_id="notification-service-group",
+                auto_offset_reset="latest",
                 value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-                api_version_auto_timeout_ms=30000,
+                # ✅ CORRECCIÓN: Aumentamos a 20000 (20s) para que sea > session_timeout (10s)
+                request_timeout_ms=20000,
+                # Opcional: Explicitar el session_timeout para estar seguros (default es 10000)
+                session_timeout_ms=10000
             )
 
-            print("📡 Connected to Kafka. Listening to topics:", KAFKA_TOPICS)
+            print(f"🔊 [Notification] Conectado a Kafka. Escuchando: {TOPICS}", flush=True)
 
             for message in consumer:
                 try:
                     event = message.value
-                    print(f"📩 Event received from {message.topic}: {event}")
-
-                    # Procesamos el evento (lógica de negocio extra si la hay)
-                    process_event(event)
-
-                    # Creamos el objeto de notificación
-                    notification = {
-                        "event_type": message.topic,
-                        "title": f"Event: {message.topic}",
-                        "message": event.get("message", "New event received"),
-                        "student_id": event.get("student_id", "test-student"),
-                        "metadata": event,
-                        "created_at": datetime.utcnow().isoformat(),
-                    }
-
-                    notifications_collection.insert_one(notification)
-                    print("Notification saved to MongoDB")
-
-                    notification["_id"] = str(notification["_id"])
-
-                    # 2. Publicamos en RabbitMQ
-                    publish_notification(notification)
-                    print("Notification published to RabbitMQ")
-
+                    event_type = event.get("event_type")
+                    
+                    if event_type in ["trip.started", "trip.completed"]:
+                        print(f"📩 [Notification] Procesando: {event_type}", flush=True)
+                        process_event(event)
+                        
                 except Exception as e:
-                    print("Error processing event:", e)
-
-        except NoBrokersAvailable:
-            print("Kafka brokers not available. Retrying in 5 seconds...")
-            time.sleep(5)
+                    print(f"❌ Error procesando evento: {e}", flush=True)
 
         except Exception as e:
-            print("Unexpected error in Kafka consumer:", e)
+            # Captura general para reintentar si Kafka aún no está listo
+            print(f"⚠️ Error conexión Kafka: {e}. Reintentando en 5s...", flush=True)
             time.sleep(5)

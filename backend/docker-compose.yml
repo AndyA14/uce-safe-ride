@@ -289,7 +289,7 @@ services:
       MONGO_DB: notification_db
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPICS: route.started,bus.near_stop,payment.completed,route.traffic_detected,bus.arrived_uce
-    
+      KAFKA_TOPIC_TRIPS: trips
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
       RABBITMQ_PASSWORD: uce123
@@ -323,10 +323,14 @@ services:
       PYTHONUNBUFFERED: 1
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
       JWT_ALGORITHM: HS256
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_TRIPS: trips
     depends_on:
       rabbitmq:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     ports:
       - "8009:8000"

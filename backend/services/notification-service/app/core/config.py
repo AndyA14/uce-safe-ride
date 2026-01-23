@@ -1,25 +1,25 @@
 import os
+from pydantic_settings import BaseSettings
 
-# --------------------------
-# Mongo
-# --------------------------
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017")
-MONGO_DB = os.getenv("MONGO_DB", "notification_db")
+class Settings(BaseSettings):
+    # --- MongoDB ---
+    MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://mongo:27017")
+    MONGO_DB: str = os.getenv("MONGO_DB", "notification_db")
 
-# --------------------------
-# Kafka
-# --------------------------
-KAFKA_BOOTSTRAP_SERVERS = os.getenv(
-    "KAFKA_BOOTSTRAP_SERVERS",
-    "kafka:9092"
-)
+    # --- Kafka (Para Tracking GPS) ---
+    KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+    # El simulador envía aquí:
+    KAFKA_TOPIC_TRIPS: str = "trip.location.updated"
 
-# Topics separados por coma en Docker
-KAFKA_TOPICS = os.getenv(
-    "KAFKA_TOPICS",
-    "route.started,bus.near_stop,payment.completed"
-).split(",")
+    # --- RabbitMQ (Para Eventos de Negocio) ---
+    # ¡Aquí lo rescatamos! No está pintado.
+    RABBITMQ_HOST: str = os.getenv("RABBITMQ_HOST", "rabbitmq")
+    RABBITMQ_USER: str = os.getenv("RABBITMQ_USER", "uce")
+    RABBITMQ_PASSWORD: str = os.getenv("RABBITMQ_PASSWORD", "uce123")
+    RABBITMQ_PORT: int = int(os.getenv("RABBITMQ_PORT", 5672))
 
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
-RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
-RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
+    class Config:
+        case_sensitive = True
+
+# Exportamos la instancia única
+settings = Settings()

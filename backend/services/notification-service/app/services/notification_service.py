@@ -1,35 +1,36 @@
 from datetime import datetime
-from db.mongo import notifications_collection
-
-def build_message(event: dict) -> str:
-    etype = event.get("event_type")
-
-    if etype == "route.started":
-        return "🚌 La ruta ha iniciado"
-
-    if etype == "bus.arrived_uce":
-        return "🎓 El bus ha llegado a la UCE"
-
-    if etype == "route.traffic_detected":
-        delay = event.get("metadata", {}).get("delay_minutes", 0)
-        return f"🚦 Tráfico detectado. Retraso estimado: {delay} minutos"
-
-    if etype == "payment.completed":
-        return "💳 Pago confirmado exitosamente"
-
-    return "🔔 Nueva notificación"
-
+from app.db.mongo import notifications_collection
 
 def process_event(event: dict):
-    message = build_message(event)
+    """Procesa el evento y guarda la notificación."""
+    event_type = event.get("event_type")
+    data = event.get("data", {}) 
+    
+    trip_id = event.get("trip_id") or data.get("trip_id")
+    route_id = event.get("route_id") or data.get("route_id")
 
+    title = "Notificación UCE"
+    message = "Tienes un nuevo mensaje."
+
+    if event_type == "trip.started":
+        title = "🚍 ¡El bus ha salido!"
+        message = f"El viaje ha comenzado. Revisa el mapa."
+    elif event_type == "trip.completed":
+        title = "🏁 Viaje Finalizado"
+        message = "El bus ha llegado a su destino."
+    
     notification = {
-        "event_type": event.get("event_type"),
-        "route_id": event.get("route_id"),
+        "title": title,
         "message": message,
-        "payload": event,
+        "event_type": event_type,
+        "trip_id": trip_id,
+        "route_id": route_id,
         "created_at": datetime.utcnow(),
+        "read": False
     }
 
-    notifications_collection.insert_one(notification)
-    print("✅ Notification stored in MongoDB")
+    try:
+        notifications_collection.insert_one(notification)
+        print(f"✅ [Mongo] Notificación guardada: {title}", flush=True)
+    except Exception as e:
+        print(f"⚠️ [Mongo Error] No se pudo guardar: {e}", flush=True)

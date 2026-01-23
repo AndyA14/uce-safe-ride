@@ -1,26 +1,25 @@
 import time
 from pymongo import MongoClient, errors
-from core.config import MONGO_URI, MONGO_DB
+# Importamos el objeto settings, NO las variables sueltas
+from app.core.config import settings
 
 def get_mongo_client(uri: str, max_retries: int = 5, retry_delay: int = 5) -> MongoClient:
     retries = 0
     while retries < max_retries:
         try:
             client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-            # Forzar verificación de conexión
             client.admin.command("ping")
-            print("Connected to MongoDB at", uri)
+            print(f"✅ [Mongo] Conectado a: {uri}", flush=True)
             return client
-        except errors.ServerSelectionTimeoutError as e:
+        except errors.ServerSelectionTimeoutError:
             retries += 1
-            print(f"MongoDB not available (attempt {retries}/{max_retries}). Retrying in {retry_delay}s...")
+            print(f"⚠️ [Mongo] Reintentando ({retries}/{max_retries})...", flush=True)
             time.sleep(retry_delay)
 
-    raise ConnectionError(f"Could not connect to MongoDB at {uri} after {max_retries} attempts.")
+    raise ConnectionError(f"❌ Fallo crítico conectando a Mongo en {uri}")
 
-# Crear cliente y base de datos
-client = get_mongo_client(MONGO_URI)
-db = client[MONGO_DB]
+# Usamos settings.VARIABLE
+client = get_mongo_client(settings.MONGO_URI)
+db = client[settings.MONGO_DB]
 
-# Colección de notificaciones
 notifications_collection = db["notifications_log"]

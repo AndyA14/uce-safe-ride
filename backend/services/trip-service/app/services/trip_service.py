@@ -133,68 +133,51 @@ class TripService:
     
     # ==================== Lifecycle ====================
     
-    def start_trip(self, trip_id: int, start_data: TripStartRequest) -> Trip:
+    def start_trip(self, trip_id: int):
         trip = self.get_trip(trip_id)
-        
-        if trip.status != TripStatus.CREATED.value:
-            raise InvalidTripStatusException(trip.status, "iniciar")
-        
-        trip.status = TripStatus.ACTIVE.value
-        trip.actual_start_time = datetime.now()
-        
+        trip.actual_start_time = datetime.utcnow()
+        trip.status = "ACTIVE"
         self.db.commit()
-        self.db.refresh(trip)
-        
-        if self.event_publisher:
-            from app.schemas.events import TripStartedEvent, LocationData
-            event = TripStartedEvent(
-                trip_id=trip.id,
-                route_id=str(trip.route_id),
-                driver_id=str(trip.driver_id),
-                vehicle_id=str(trip.vehicle_id),
-                actual_start_time=trip.actual_start_time.isoformat(),
-                initial_location=LocationData(
-                    latitude=start_data.initial_latitude,
-                    longitude=start_data.initial_longitude
-                ),
-                status=trip.status
-            )
-            self.event_publisher.publish_trip_started(event)
-        
         return trip
     
-    def complete_trip(self, trip_id: int, complete_data: TripCompleteRequest) -> Trip:
+    def complete_trip(self, trip_id: int) -> Trip:
         trip = self.get_trip(trip_id)
-        
+
         if trip.status != TripStatus.ACTIVE.value:
             raise InvalidTripStatusException(trip.status, "completar")
-        
+
         trip.status = TripStatus.COMPLETED.value
-        trip.actual_end_time = datetime.now()
-        
+        trip.actual_end_time = datetime.utcnow()
+
         self.db.commit()
         self.db.refresh(trip)
-        
+
+        # 🔔 Evento de dominio (opcional pero recomendado)
         if self.event_publisher:
             from app.schemas.events import TripCompletedEvent, LocationData
+
             event = TripCompletedEvent(
                 trip_id=trip.id,
                 route_id=str(trip.route_id),
                 driver_id=str(trip.driver_id),
                 vehicle_id=str(trip.vehicle_id),
-                actual_start_time=trip.actual_start_time.isoformat() if trip.actual_start_time else None,
+                actual_start_time=(
+                    trip.actual_start_time.isoformat()
+                    if trip.actual_start_time
+                    else None
+                ),
                 actual_end_time=trip.actual_end_time.isoformat(),
                 passenger_count=trip.current_passenger_count,
+                # 📍 Ubicación final tomada del último estado conocido
                 final_location=LocationData(
-                    latitude=complete_data.final_latitude,
-                    longitude=complete_data.final_longitude
+                    latitude=trip.current_latitude,
+                    longitude=trip.current_longitude,
                 ),
-                status=trip.status
+                status=trip.status,
             )
             self.event_publisher.publish_trip_completed(event)
-        
-        return trip
-    
+            return trip
+
     def cancel_trip(self, trip_id: int, reason: str) -> Trip:
         trip = self.get_trip(trip_id)
         

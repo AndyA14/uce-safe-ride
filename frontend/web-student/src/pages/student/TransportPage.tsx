@@ -1,325 +1,157 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouteSocket } from '@/hooks/useRouteSocket';
+import { routeService } from '@/services/routeService';
+import { transportService } from '@/services/tripService'; // Asumo que tienes esto
+import LiveRouteMap from '@/components/Map/LiveRouteMap'; // ✅ REUTILIZAMOS TU COMPONENTE
+import { Loader2, Wifi, WifiOff, Bus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { transportService } from '@/services/transportService';
-import LiveRouteMap from '@/components/Map/LiveRouteMap';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Loader2,
-  User,
-  Bus,
-  Navigation,
-  LogOut,
-  RefreshCw,
-} from 'lucide-react';
 
-const TransportPage: React.FC = () => {
-  const { user, token, isLoading: authLoading } = useAuth();
+const TransportPage = () => {
+  const { token } = useAuth();
   const { toast } = useToast();
 
-  const [loading, setLoading] = useState(false);
-  const [activeRide, setActiveRide] = useState<any>(null);
-  const [availableTrips, setAvailableTrips] = useState<any[]>([]);
+  // --- Estados ---
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('');
+  const [activeTrip, setActiveTrip] = useState<any>(null);
   const [routePolyline, setRoutePolyline] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+  // --- WebSocket ---
+  // Se conecta AUTOMÁTICAMENTE cuando hay un activeTrip válido (Igual que el driver)
+  const { isConnected, socketLocation } = useRouteSocket(
+    token, 
+    activeTrip?.id || null
+  );
 
-  /* ======================================================
-     📍 POSICIÓN DEL BUS (CON VALIDACIÓN ESTRICTA)
-  ====================================================== */
-  const defaultLocation = {
-    lat: -0.2017,
-    lng: -78.5057,
-    heading: 0,
-  };
+  // Ubicación por defecto (Quito) si no hay datos del socket
+  const defaultLocation = { lat: -0.2017, lng: -78.5057 };
+  const busLocation = socketLocation || defaultLocation;
 
-  // ✅ Conversión y validación robusta
-  const busPos = useMemo(() => {
-    if (!activeRide) return defaultLocation;
-
-    // Convertir a números explícitamente
-    const lat = Number(activeRide.current_latitude);
-    const lng = Number(activeRide.current_longitude);
-    const heading = Number(activeRide.heading) || 0;
-
-    // Validar que sean números válidos
-    if (isNaN(lat) || isNaN(lng)) {
-      console.error('❌ Coordenadas del bus inválidas:', {
-        lat: activeRide.current_latitude,
-        lng: activeRide.current_longitude,
-      });
-      return defaultLocation;
-    }
-
-    // Validar rango de Quito (seguridad adicional)
-    if (lat < -1 || lat > 0 || lng < -79 || lng > -78) {
-      console.warn('⚠️ Coordenadas fuera de Quito:', { lat, lng });
-    }
-
-    return { lat, lng, heading };
-  }, [activeRide]);
-
-  const isUserReady = user?.id && user.id !== 'unknown';
-
-  /* ======================================================
-     📄 SYNC GENERAL
-  ====================================================== */
-  const syncData = useCallback(async () => {
-    if (!token) return;
-
-    setLoading(true);
-    try {
-      if (isUserReady) {
-        const myTrip = await transportService.getActiveTripByStudent(
-          String(user.id)
-        );
-        setActiveRide(myTrip);
-      }
-
-      const trips = await transportService.getActiveTrips();
-      setAvailableTrips(trips);
-    } catch (err) {
-      console.error('❌ Error sync:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, isUserReady, user?.id]);
-
-  /* ======================================================
-     🚀 CARGA INICIAL
-  ====================================================== */
+  // 1. Cargar lista de rutas al iniciar
   useEffect(() => {
-    if (!authLoading) {
-      syncData();
-    }
-  }, [authLoading, syncData]);
-
-  /* ======================================================
-     🛰️ TRACKING DEL BUS
-  ====================================================== */
-  useEffect(() => {
-    if (!activeRide || !isUserReady) return;
-
-    console.log('🛰️ Iniciando tracking para viaje:', activeRide.id);
-
-    const trackBus = async () => {
+    const loadRoutes = async () => {
       try {
-        const allTrips = await transportService.getActiveTrips();
-        const updatedTrip = allTrips.find(
-          (t: any) => String(t.id) === String(activeRide.id)
-        );
-
-        if (updatedTrip) {
-          // 🔍 Debug de movimiento
-          if (
-            updatedTrip.current_latitude !== activeRide.current_latitude ||
-            updatedTrip.current_longitude !== activeRide.current_longitude
-          ) {
-            console.log('🚌 Bus se movió:', {
-              old: {
-                lat: activeRide.current_latitude,
-                lng: activeRide.current_longitude,
-              },
-              new: {
-                lat: updatedTrip.current_latitude,
-                lng: updatedTrip.current_longitude,
-              },
-            });
-          }
-          
-          setActiveRide(updatedTrip);
-        }
+        const allRoutes = await routeService.getAllRoutes();
+        setRoutes(allRoutes);
       } catch (error) {
-        console.error('⚠️ Error rastreando bus:', error);
+        console.error("Error cargando rutas", error);
       }
     };
+    loadRoutes();
+  }, []);
 
-    trackBus();
-    pollingInterval.current = setInterval(trackBus, 3000);
-
-    return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
-        pollingInterval.current = null;
-        console.log('🛑 Tracking detenido');
-      }
-    };
-  }, [activeRide?.id, isUserReady]);
-
-  /* ======================================================
-     🗺️ POLYLINE DE RUTA
-  ====================================================== */
-  useEffect(() => {
-    const loadRoute = async () => {
-      if (activeRide?.route_id) {
-        console.log('🗺️ Cargando polyline para ruta:', activeRide.route_id);
-        const poly = await transportService.getRoutePolyline(
-          activeRide.route_id
-        );
-        
-        if (poly) {
-          console.log('✅ Polyline recibida, longitud:', poly.length);
-          setRoutePolyline(poly);
-        } else {
-          console.warn('⚠️ No se recibió polyline');
-          setRoutePolyline('');
-        }
-      } else {
-        setRoutePolyline('');
-      }
-    };
-
-    loadRoute();
-  }, [activeRide?.route_id]);
-
-  /* ======================================================
-     🎯 ACTIONS
-  ====================================================== */
-  const handleJoin = async (tripId: number) => {
-    if (!isUserReady) return;
-
-    setLoading(true);
-    try {
-      await transportService.boardTrip(tripId, String(user.id));
-      toast({ title: '¡Subido al bus!' });
-      await syncData();
-    } catch (e: any) {
-      toast({
-        title: 'Error',
-        description: 'No se pudo subir.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLeave = async () => {
-    if (!activeRide) return;
-
-    setLoading(true);
-    try {
-      await transportService.leaveVehicle(
-        activeRide.id,
-        String(user.id)
-      );
-      toast({ title: 'Te bajaste del bus' });
-      setActiveRide(null);
+  // 2. Cuando el estudiante selecciona una ruta
+  const handleRouteSelect = async (routeId: string) => {
+    setSelectedRouteId(routeId);
+    if (!routeId) {
+      setActiveTrip(null);
       setRoutePolyline('');
-      await syncData();
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'No se pudo bajar.',
-        variant: 'destructive',
-      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // A. Obtener el dibujo de la ruta (Polyline)
+      const poly = await transportService.getRoutePolyline(routeId);
+      setRoutePolyline(poly || '');
+
+      // B. Buscar si hay un viaje ACTIVO en esa ruta
+      // NOTA: Ajusta 'getTripsByRoute' al nombre real de tu método en transportService
+      // Si no existe, suele ser un getTrips con filtro.
+      const trips = await transportService.getTripsByRoute(routeId); 
+      const currentTrip = trips.find((t: any) => t.status === 'ACTIVE');
+
+      if (currentTrip) {
+        setActiveTrip(currentTrip);
+        toast({ 
+          title: "Bus encontrado", 
+          description: "Conectando a la telemetría en vivo...",
+          className: "bg-green-50 border-green-200"
+        });
+      } else {
+        setActiveTrip(null);
+        toast({ 
+          title: "Sin servicio", 
+          description: "No hay buses circulando en esta ruta ahora.",
+          variant: "destructive"
+        });
+      }
+
+    } catch (error) {
+      console.error("Error buscando viaje:", error);
+      toast({ title: "Error", description: "No se pudo cargar la información de la ruta" });
     } finally {
       setLoading(false);
     }
   };
 
-  /* ======================================================
-     🔍 DEBUG RENDER
-  ====================================================== */
-  console.log('🎨 TRANSPORT PAGE RENDER:', {
-    hasActiveRide: !!activeRide,
-    tripId: activeRide?.id,
-    busPos,
-    polylineLength: routePolyline?.length || 0,
-  });
-
-  /* ======================================================
-     🖥️ RENDER
-  ====================================================== */
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col p-4 space-y-4 bg-gray-50 dark:bg-slate-950">
-      {activeRide ? (
-        <>
-          {/* 🔍 PANEL DE DEBUG */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs font-mono">
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <strong>Trip ID:</strong> {activeRide.id}
-              </div>
-              <div>
-                <strong>Lat:</strong> {busPos.lat.toFixed(6)}
-              </div>
-              <div>
-                <strong>Lng:</strong> {busPos.lng.toFixed(6)}
-              </div>
-              <div>
-                <strong>Polyline:</strong> {routePolyline ? `${routePolyline.length} chars` : 'Sin datos'}
-              </div>
-              <div>
-                <strong>Heading:</strong> {busPos.heading}°
-              </div>
-            </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)] bg-slate-100 dark:bg-slate-950 p-4 gap-4">
+      
+      {/* === HEADER Y SELECTOR === */}
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+            <Bus size={24} />
           </div>
-
-          {/* INFO */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 shadow border flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Bus className="text-blue-600" size={32} />
-              <div>
-                <p className="text-xs text-gray-400">Placa</p>
-                <p className="font-bold text-lg">{activeRide.plate}</p>
-              </div>
-            </div>
-
-            <Button variant="destructive" onClick={handleLeave} disabled={loading}>
-              <LogOut size={16} className="mr-2" />
-              BAJARME
-            </Button>
+          <div>
+            <h1 className="font-bold text-lg text-slate-800 dark:text-white">Transporte Estudiantil</h1>
+            <p className="text-xs text-slate-500">Selecciona tu ruta para ver el bus</p>
           </div>
+        </div>
 
-          {/* MAPA */}
-          <div className="flex-1 rounded-3xl overflow-hidden border shadow-lg bg-slate-100">
-            <LiveRouteMap
-              routePolyline={routePolyline}
-              busLocation={busPos}
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          <h2 className="text-2xl font-black flex items-center gap-2">
-            <Navigation className="text-blue-600" />
-            Unidades disponibles
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
-            {availableTrips.map((trip) => (
-              <div
-                key={trip.id}
-                className="bg-white dark:bg-slate-900 p-5 rounded-3xl border"
-              >
-                <div className="flex justify-between mb-3">
-                  <strong className="text-lg">{trip.plate}</strong>
-                  <Badge className="bg-green-100 text-green-700">
-                    ACTIVO
-                  </Badge>
-                </div>
-
-                <p className="text-sm mb-2">
-                  👨‍✈️ {trip.driver_name || 'Conductor UCE'}
-                </p>
-                <p className="text-sm mb-4">
-                  👥 {trip.current_passenger_count || 0} / {trip.max_passengers}
-                </p>
-
-                <Button
-                  className="w-full"
-                  onClick={() => handleJoin(trip.id)}
-                  disabled={loading}
-                >
-                  SUBIRME
-                </Button>
-              </div>
+        <div className="w-full md:w-64">
+          <select
+            className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
+            value={selectedRouteId}
+            onChange={(e) => handleRouteSelect(e.target.value)}
+          >
+            <option value="">-- Seleccionar Ruta --</option>
+            {routes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
             ))}
+          </select>
+        </div>
+      </div>
+
+      {/* === ÁREA DEL MAPA (Reutilizando tu componente limpio) === */}
+      <div className="flex-1 bg-white dark:bg-slate-900 rounded-2xl shadow-lg border overflow-hidden relative">
+        
+        {loading && (
+          <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex items-center justify-center">
+            <Loader2 className="animate-spin text-blue-600 w-8 h-8" />
           </div>
-        </>
-      )}
+        )}
+
+        {/* COMPONENTE DEL MAPA (Igual que en Driver) */}
+        <LiveRouteMap
+          routePolyline={routePolyline}
+          busLocation={busLocation}
+        />
+
+        {/* INDICADOR DE ESTADO (Flotante) */}
+        <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+           {/* Estado del Socket */}
+           <div className={`px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-bold shadow-md ${
+             isConnected ? 'bg-green-500 text-white' : 'bg-slate-800 text-slate-400'
+           }`}>
+             {isConnected ? <Wifi size={12} /> : <WifiOff size={12} />}
+             {isConnected ? 'EN VIVO' : 'DESCONECTADO'}
+           </div>
+        </div>
+
+        {/* MENSAJE SI NO HAY BUS */}
+        {!activeTrip && selectedRouteId && !loading && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 bg-black/80 backdrop-blur text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+            <span className="text-xs font-medium">Esperando inicio de recorrido...</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
