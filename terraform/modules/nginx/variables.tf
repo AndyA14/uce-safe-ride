@@ -1,2 +1,9 @@
 variable "public_subnet" {}
-variable "vpc_id" {}
+variable "security_group" {}
+variable "environment" {}
+
+variable "frontend_ip" {}
+variable "auth_ip" {}
+variable "student_ip" {}
+variable "driver_ip" {}
+variable "ws_ip" {}

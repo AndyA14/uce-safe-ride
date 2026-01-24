@@ -84,8 +84,17 @@ module "mqtt" {
 module "nginx" {
   source        = "../../modules/nginx"
   public_subnet = module.networking.public_subnets[1]
-  vpc_id        = module.networking.vpc_id
+  security_group = module.security.nginx_sg
+  environment   = var.environment
+
+  frontend_ip = module.frontend.frontend_private_ip
+
+  auth_ip     = module.microservices.services["auth-service"].private_ip
+  student_ip  = module.microservices.services["student-service"].private_ip
+  driver_ip   = module.microservices.services["driver-service"].private_ip
+  ws_ip       = module.microservices.services["ws-gateway"].private_ip
 }
+
 module "frontend" {
   source            = "../../modules/frontend"
   project           = var.project

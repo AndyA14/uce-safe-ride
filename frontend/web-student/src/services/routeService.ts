@@ -5,7 +5,7 @@ import api from '@/services/api';
 // ✅ Importamos todo lo necesario desde el archivo de tipos
 import { Route, BusStop, Bus, ActiveRouteResponse, RouteDetails } from '@/types/route';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8003/api/v1/routes';
+const API_URL = window._env_?.VITE_API_URL || 'http://localhost:8003/api/v1/routes';
 const UI_COLORS = ['#0033A0', '#22C55E', '#FFC400', '#EF4444', '#8B5CF6'];
 
 /* ======================================================

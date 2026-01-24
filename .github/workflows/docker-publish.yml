@@ -6,7 +6,6 @@ on:
 
 jobs:
   # JOB 1: EL DETECTIVE 🕵️‍♂️
-  # Este trabajo averigua qué carpetas han cambiado
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -17,7 +16,6 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-          # Genera una lista JSON con los servicios modificados
           base: qa
           filters: |
             auth-service: backend/services/auth-service/**
@@ -31,12 +29,11 @@ jobs:
             trip-service: backend/services/trip-service/**
             vehicle-service: backend/services/vehicle-service/**
             ws-gateway: backend/services/ws-gateway/**
+            web-student: frontend/web-student/** 
 
   # JOB 2: EL CONSTRUCTOR 🏗️
-  # Solo se ejecuta si hay cambios y solo para los servicios detectados
   build-and-push:
     needs: detect-changes
-    # Si la lista está vacía (ej. cambiaste el README), este job NO arranca
     if: ${{ needs.detect-changes.outputs.services != '[]' && needs.detect-changes.outputs.services != '' }}
     
     runs-on: ubuntu-latest
@@ -45,7 +42,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Aquí está la magia: La matriz ya no es fija, viene del Job anterior
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
 
     steps:
@@ -64,10 +60,10 @@ jobs:
       - name: 🛠️ Build and push ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
-          # Mantenemos la lógica condicional que ya funcionó
-          context: ${{ matrix.service == 'simulation-service' && format('./backend/services/{0}', matrix.service) || './backend' }}
+          context: ${{ matrix.service == 'web-student' && './frontend/web-student' || (matrix.service == 'simulation-service' && format('./backend/services/{0}', matrix.service) || './backend') }}
+
+          file: ${{ matrix.service == 'web-student' && './frontend/web-student/Dockerfile' || format('./backend/services/{0}/Dockerfile', matrix.service) }}
           
-          file: ./backend/services/${{ matrix.service }}/Dockerfile
           push: true
           tags: |
             aceofglass14/uce-${{ matrix.service }}:qa
