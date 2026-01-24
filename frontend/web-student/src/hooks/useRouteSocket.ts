@@ -25,6 +25,7 @@ export const useRouteSocket = (
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<any>(null);
   const [socketLocation, setSocketLocation] = useState<SocketLocation | null>(null);
+  const [lastNotification, setLastNotification] = useState<any>(null); // Nuevo estado para alertas
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,23 +37,19 @@ export const useRouteSocket = (
    */
   const parseLocationFromMessage = useCallback((rawData: any): SocketLocation | null => {
     try {
-      // 🔍 Log para debugging
       console.log('📦 [Parser] Raw data:', rawData);
 
-      // Inicialización de coordenadas y velocidad
       let lat: any = null;
       let lng: any = null;
       let heading: any = 0;
       let speed: any = 0;
 
-      // 🚨 Buscar coordenadas en diferentes niveles
-      // 1. Coordenadas en la raíz (formato principal)
+      // Buscar coordenadas en diferentes niveles
       lat = rawData.latitude || rawData.lat || lat;
       lng = rawData.longitude || rawData.lng || lng;
       heading = rawData.heading || rawData.course || rawData.bearing || heading;
       speed = rawData.speed || rawData.velocity || speed;
 
-      // 2. Coordenadas en 'data' (formato alternativo)
       if (!lat && rawData.data) {
         lat = rawData.data.latitude || rawData.data.lat || lat;
         lng = rawData.data.longitude || rawData.data.lng || lng;
@@ -60,7 +57,6 @@ export const useRouteSocket = (
         speed = rawData.data.speed || speed;
       }
 
-      // 3. Coordenadas en 'payload' (otro formato alternativo)
       if (!lat && rawData.payload) {
         lat = rawData.payload.latitude || rawData.payload.lat || lat;
         lng = rawData.payload.longitude || rawData.payload.lng || lng;
@@ -68,7 +64,6 @@ export const useRouteSocket = (
         speed = rawData.payload.speed || speed;
       }
 
-      // 4. Coordenadas en 'location' (más formatos alternativos)
       if (!lat && rawData.location) {
         lat = rawData.location.latitude || rawData.location.lat || lat;
         lng = rawData.location.longitude || rawData.location.lng || lng;
@@ -76,13 +71,11 @@ export const useRouteSocket = (
         speed = rawData.location.speed || speed;
       }
 
-      // 🔢 Convertir a números
       const numLat = Number(lat);
       const numLng = Number(lng);
       const numHeading = Number(heading);
       const numSpeed = Number(speed);
 
-      // ✅ Validación: Coordenadas válidas y no cero
       if (!isNaN(numLat) && !isNaN(numLng) && numLat !== 0 && numLng !== 0) {
         const location: SocketLocation = {
           lat: numLat,
@@ -90,12 +83,10 @@ export const useRouteSocket = (
           heading: !isNaN(numHeading) ? numHeading : 0,
           speed: !isNaN(numSpeed) ? numSpeed : 0,
         };
-
         console.log('✅ [Parser] Ubicación extraída:', location);
         return location;
       }
 
-      // ⚠️ Coordenadas no válidas
       console.warn('⚠️ [Parser] No se encontraron coordenadas válidas en:', rawData);
       return null;
 
@@ -109,26 +100,22 @@ export const useRouteSocket = (
    * Función para conectar al WebSocket
    */
   const connect = useCallback(() => {
-    // Validación
     if (!token || !tripId) {
       if (!token) console.log('⚠️ [WebSocket] Sin token');
       if (!tripId) console.log('⚠️ [WebSocket] Sin tripId');
       return;
     }
 
-    // Evitar múltiples conexiones
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       console.log('✅ [WebSocket] Ya conectado');
       return;
     }
 
-    // Cerrar conexión previa
     if (socketRef.current) {
       socketRef.current.close();
     }
 
     const url = `${WS_URL}?token=${token}&trip_id=${tripId}`;
-
     console.log('='.repeat(60));
     console.log('🔌 CONECTANDO WEBSOCKET');
     console.log('='.repeat(60));
@@ -161,17 +148,21 @@ export const useRouteSocket = (
           console.log('='.repeat(60));
           console.log('Raw:', rawData);
 
-          // Guardar mensaje completo
           setLastMessage(rawData);
 
-          // 🔑 PARSEAR UBICACIÓN (AGNÓSTICO)
+          // Parsear ubicación
           const location = parseLocationFromMessage(rawData);
-
           if (location) {
             console.log('🚌 ACTUALIZANDO POSICIÓN DEL BUS:', location);
             setSocketLocation(location);
           } else {
             console.log('ℹ️ Mensaje sin coordenadas de ubicación');
+          }
+
+          // Detectar alertas
+          if (rawData.event_type && rawData.event_type !== 'trip.location.updated') {
+            console.log("🔔 Alerta recibida:", rawData);
+            setLastNotification(rawData); // Guardar la alerta
           }
 
         } catch (e) {
@@ -188,7 +179,6 @@ export const useRouteSocket = (
 
         setIsConnected(false);
 
-        // Reconectar si fue inesperado
         if (
           !event.wasClean &&
           tripId &&
@@ -199,11 +189,7 @@ export const useRouteSocket = (
             1000 * Math.pow(2, reconnectAttempts.current),
             30000
           );
-
-          console.log(
-            `🔄 Reintento ${reconnectAttempts.current}/${maxReconnectAttempts} en ${delay}ms`
-          );
-
+          console.log(`🔄 Reintento ${reconnectAttempts.current}/${maxReconnectAttempts} en ${delay}ms`);
           reconnectTimeoutRef.current = setTimeout(connect, delay);
         }
       };
@@ -222,9 +208,6 @@ export const useRouteSocket = (
     }
   }, [token, tripId, parseLocationFromMessage]);
 
-  /**
-   * Función para enviar mensajes
-   */
   const publish = useCallback((topic: string, payload: any) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       const message = JSON.stringify({
@@ -232,7 +215,6 @@ export const useRouteSocket = (
         ...payload,
         timestamp: new Date().toISOString(),
       });
-
       socketRef.current.send(message);
       console.log('📤 Mensaje enviado:', { topic, payload });
     } else {
@@ -240,9 +222,6 @@ export const useRouteSocket = (
     }
   }, []);
 
-  /**
-   * Función para desconectar manualmente
-   */
   const disconnect = useCallback(() => {
     if (socketRef.current) {
       console.log('🔌 Cerrando WebSocket');
@@ -253,9 +232,6 @@ export const useRouteSocket = (
     setSocketLocation(null);
   }, []);
 
-  /**
-   * Efecto: Conectar cuando hay token y tripId
-   */
   useEffect(() => {
     connect();
 
@@ -272,7 +248,8 @@ export const useRouteSocket = (
   return {
     isConnected,
     lastMessage,
-    socketLocation, 
+    socketLocation,
+    lastNotification,  // Retornar las alertas
     publish,
     disconnect,
   };

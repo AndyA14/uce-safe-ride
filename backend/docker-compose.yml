@@ -325,6 +325,7 @@ services:
       JWT_ALGORITHM: HS256
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_TRIPS: trips
+      KAFKA_TOPIC_ALERTS: notification.alerts
     depends_on:
       rabbitmq:
         condition: service_healthy

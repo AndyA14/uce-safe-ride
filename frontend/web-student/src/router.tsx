@@ -15,10 +15,6 @@ import LoginModal from '@/components/landing/LoginModal';
 // =====================
 import StudentDashboardPage from '@/pages/student/DashboardPage';
 import StudentRoutesPage from '@/pages/student/RoutesPage';
-import StudentHistoryPage from '@/pages/student/HistoryPage';
-import StudentPaymentsPage from '@/pages/student/PaymentsPage';
-import StudentNotificationsPage from '@/pages/student/NotificationsPage';
-import StudentAssistantPage from '@/pages/student/AssistantPage';
 import StudentProfilePage from '@/pages/student/ProfilePage';
 import StudentSettingsPage from '@/pages/student/SettingsPage';
 import StudentTransportPage from '@/pages/student/TransportPage';
@@ -147,10 +143,6 @@ export default function Router() {
         <Route path="dashboard" element={<StudentDashboardPage />} />
         <Route path="transport" element={<StudentTransportPage />} />
         <Route path="routes" element={<StudentRoutesPage />} />
-        <Route path="history" element={<StudentHistoryPage />} />
-        <Route path="payments" element={<StudentPaymentsPage />} />
-        <Route path="notifications" element={<StudentNotificationsPage />} />
-        <Route path="assistant" element={<StudentAssistantPage />} />
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="settings" element={<StudentSettingsPage />} />
       </Route>

@@ -28,10 +28,6 @@ const navItems: NavItem[] = [
   { to: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['STUDENT'] },
   { to: '/student/transport', label: 'Mi Transporte', icon: Bus, roles: ['STUDENT'] },
   { to: '/student/routes', label: 'Rutas', icon: MapIcon, roles: ['STUDENT'] },
-  { to: '/student/history', label: 'Historial', icon: History, roles: ['STUDENT'] },
-  { to: '/student/payments', label: 'Pagos', icon: CreditCard, roles: ['STUDENT'] },
-  { to: '/student/notifications', label: 'Notificaciones', icon: Bell, roles: ['STUDENT'] },
-  { to: '/student/assistant', label: 'Asistente IA', icon: Bot, roles: ['STUDENT'] },
   { to: '/student/profile', label: 'Mi Perfil', icon: User, roles: ['STUDENT'] },
   { to: '/student/settings', label: 'Configuración', icon: Settings, roles: ['STUDENT'] },
   

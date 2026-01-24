@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = "kafka:9092"
     KAFKA_TOPIC_TRIPS: str = "trips"
     KAFKA_GROUP_ID: str = "ws_gateway_group"
-
+    KAFKA_TOPIC_ALERTS: str = "notification.alerts"
 
     JWT_SECRET_KEY: str = "super-secret"
     JWT_ALGORITHM: str = "HS256"

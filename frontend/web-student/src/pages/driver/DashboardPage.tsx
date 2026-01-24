@@ -1,140 +1,105 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Bus,
   Play,
   CheckCircle,
   Wifi,
   WifiOff,
   Loader2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouteSocket } from '@/hooks/useRouteSocket';
-import { transportService } from '@/services/tripService';
-import { vehicleService } from '@/services/vehicleService';
-import { routeService } from '@/services/routeService';
-import { simulationService } from '@/services/simulationService';
-import { driverService, DriverProfile } from '@/services/driverService';
-import LiveRouteMap from '@/components/Map/LiveRouteMap';
-import { useToast } from '@/hooks/use-toast';
+  Bus,
+  MapPin,
+  Navigation,
+  Users,
+  Gauge,
+  Power,
+  AlertTriangle
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouteSocket } from "@/hooks/useRouteSocket";
+import { transportService } from "@/services/tripService";
+import { vehicleService } from "@/services/vehicleService";
+import { routeService } from "@/services/routeService";
+import { simulationService } from "@/services/simulationService";
+import { driverService, DriverProfile } from "@/services/driverService";
+import LiveRouteMap from "@/components/Map/LiveRouteMap";
+import { useToast } from "@/hooks/use-toast";
+
+type TripState = "CONFIG" | "BOARDING" | "IN_ROUTE" | "IDLE";
 
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { user, token } = useAuth();
   const { toast } = useToast();
 
-  // Estados
+  // --- ESTADOS ---
   const [driverProfile, setDriverProfile] = useState<DriverProfile | null>(null);
   const [vehicle, setVehicle] = useState<any>(null);
   const [availableVehicles, setAvailableVehicles] = useState<any[]>([]);
   const [activeTrip, setActiveTrip] = useState<any>(null);
   const [routes, setRoutes] = useState<any[]>([]);
-  const [selectedRouteId, setSelectedRouteId] = useState<string>('');
+  const [selectedRouteId, setSelectedRouteId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [routePolyline, setRoutePolyline] = useState<string>('');
+  const [routePolyline, setRoutePolyline] = useState("");
+  const [tripState, setTripState] = useState<TripState>("IDLE");
+  
+  // Mock de pasajeros para efecto visual
+  const [passengerCount, setPassengerCount] = useState(0);
 
-  // 🔑 WebSocket - SIEMPRE conectado cuando hay viaje activo
+  // --- SOCKET ---
   const { isConnected, socketLocation } = useRouteSocket(
     token,
     activeTrip?.id || null
   );
 
-  // 📍 Ubicación por defecto (solo si no hay WebSocket)
   const defaultLocation = { lat: -0.2017, lng: -78.5057 };
-
-  // 🎯 Ubicación REAL del bus (prioridad: WebSocket > Default)
   const busLocation = socketLocation || defaultLocation;
 
-  /* ======================================================
-     CARGA INICIAL
-  ====================================================== */
+  // 1. CARGA INICIAL
   const loadInitialData = useCallback(async () => {
-    if (!user?.id) {
-      console.log('⚠️ No hay usuario autenticado');
-      return;
-    }
-
+    if (!user?.id) return;
     setLoading(true);
 
     try {
-      console.log('='.repeat(60));
-      console.log('🚀 CARGANDO DASHBOARD DE CONDUCTOR');
-      console.log('='.repeat(60));
+      // A. Perfil
+      const profile = await driverService.getDriverProfile();
+      setDriverProfile(profile);
 
-      // 1. Perfil del conductor
-      let profile: DriverProfile;
-
-      try {
-        profile = await driverService.getDriverProfile();
-        setDriverProfile(profile);
-        console.log('✅ Perfil obtenido:', {
-          driver_id: profile.id,
-          name: profile.name,
-        });
-      } catch (error: any) {
-        console.error('❌ Error obteniendo perfil:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error al cargar perfil',
-          description: 'No se pudo obtener información del conductor',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 2. Vehículo asignado
+      // B. Vehículo
       const assignedVehicle = await vehicleService.getVehicleByDriver(profile.id);
-      
       if (assignedVehicle) {
         setVehicle(assignedVehicle);
-        console.log('✅ Vehículo asignado:', assignedVehicle.plate);
       } else {
         const allVehicles = await vehicleService.getAllVehicles();
-        const available = allVehicles.filter((v: any) => !v.driver_id);
-        setAvailableVehicles(available);
-        console.log('⚠️ Sin vehículo. Disponibles:', available.length);
+        setAvailableVehicles(allVehicles.filter((v: any) => !v.driver_id));
       }
 
-      // 3. Rutas disponibles
+      // C. Rutas
       const allRoutes = await routeService.getAllRoutes();
       setRoutes(allRoutes);
-      console.log('✅ Rutas cargadas:', allRoutes.length);
 
-      // 4. Viaje activo
+      // D. Restaurar Viaje Activo
       const trip = await transportService.getActiveTripByDriver(profile.id);
-
-      if (trip && trip.status !== 'COMPLETED') {
-        console.log('✅ Viaje activo encontrado:', {
-          trip_id: trip.id,
-          status: trip.status,
-        });
-
+      if (trip && trip.status !== "COMPLETED") {
         setActiveTrip(trip);
+        setSelectedRouteId(trip.route_id);
 
-        // Cargar polyline de la ruta
+        // Restaurar estado visual
+        if (trip.status === "ACTIVE") setTripState("BOARDING");
+        if (trip.status === "IN_PROGRESS") setTripState("IN_ROUTE");
+
+        // Cargar mapa
         if (trip.route_id) {
           const poly = await transportService.getRoutePolyline(trip.route_id);
-          if (poly) {
-            setRoutePolyline(poly);
-            console.log('✅ Polyline cargada');
-          }
+          if (poly) setRoutePolyline(poly);
         }
       } else {
-        console.log('⚠️ Sin viaje activo');
+        // Si no hay viaje, determinamos si puede configurar uno
+        setTripState(assignedVehicle ? "CONFIG" : "IDLE");
       }
-
-      console.log('='.repeat(60));
-      console.log('✅ DASHBOARD CARGADO');
-      console.log('='.repeat(60));
-
     } catch (error: any) {
-      console.error('❌ Error cargando dashboard:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error al cargar dashboard',
-        description: error.message || 'Intenta recargar la página',
-      });
+      console.error(error);
+      toast({ variant: "destructive", title: "Error cargando datos", description: "Verifica tu conexión." });
     } finally {
       setLoading(false);
     }
@@ -144,323 +109,290 @@ const DashboardPage = () => {
     loadInitialData();
   }, [loadInitialData]);
 
-  /* ======================================================
-     DEBUG: Mostrar ubicación del bus en consola
-  ====================================================== */
-  useEffect(() => {
-    if (socketLocation && isConnected) {
-      console.log('🚌 BUS ACTUALIZADO:', {
-        lat: socketLocation.lat,
-        lng: socketLocation.lng,
-        heading: socketLocation.heading,
-        speed: socketLocation.speed,
-      });
-    }
-  }, [socketLocation, isConnected]);
 
-  /* ======================================================
-     INICIAR VIAJE
-  ====================================================== */
-  const handleStartTrip = async () => {
-    if (activeTrip) {
-      return toast({
-        variant: 'destructive',
-        title: 'Viaje en curso',
-        description: 'Finaliza el viaje actual primero',
-      });
-    }
-
+  // 2. ACCIONES DEL FLUJO
+  const handleCreateTrip = async () => {
     if (!selectedRouteId || !vehicle || !driverProfile) {
-      return toast({
-        variant: 'destructive',
-        title: 'Datos incompletos',
-        description: 'Selecciona vehículo y ruta',
-      });
+      return toast({ variant: "destructive", title: "Faltan datos", description: "Selecciona una ruta primero." });
     }
 
     try {
-      console.log('='.repeat(60));
-      console.log('🚀 INICIANDO VIAJE');
-      console.log('='.repeat(60));
-
-      // 1. Crear viaje
       const tripData = {
         route_id: selectedRouteId,
         vehicle_id: vehicle.id,
         driver_id: driverProfile.id,
       };
 
+      // Crear y Activar (Estado: Waiting for Passengers)
       const newTrip = await transportService.createTrip(tripData);
-      console.log('✅ Viaje creado:', newTrip.id);
-
-      // 2. Iniciar viaje (cambiar estado a ACTIVE)
       const startedTrip = await transportService.startTrip(newTrip.id);
-      console.log('✅ Viaje activado:', startedTrip.id);
 
-      // 3. Iniciar simulación
-      await simulationService.start({
-        trip_id: startedTrip.id,
-        route_id: selectedRouteId,
-        driver_id: driverProfile.id,
-      });
-      console.log('✅ Simulación iniciada');
-
-      // 4. Cargar polyline
+      // Cargar Polilínea
       const poly = await transportService.getRoutePolyline(selectedRouteId);
-      if (poly) {
-        setRoutePolyline(poly);
-        console.log('✅ Polyline cargada');
-      }
+      if (poly) setRoutePolyline(poly);
 
-      // 5. Actualizar estado local
       setActiveTrip(startedTrip);
+      setTripState("BOARDING");
 
-      console.log('='.repeat(60));
-      console.log('✅ VIAJE INICIADO EXITOSAMENTE');
-      console.log('='.repeat(60));
-
-      toast({
-        title: '🚌 ¡En marcha!',
-        description: 'La telemetría está transmitiendo',
+      toast({ 
+        title: "Viaje Creado", 
+        description: "El bus está visible. Esperando pasajeros...",
+        className: "bg-blue-50 border-blue-200"
       });
-
     } catch (error: any) {
-      console.error('❌ Error al iniciar viaje:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error de conexión',
-        description: error.response?.data?.detail || 'Revisa los microservicios',
-      });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     }
   };
 
-  /* ======================================================
-     FINALIZAR VIAJE
-  ====================================================== */
-  const handleCompleteTrip = async () => {
+  const handleStartRoute = async () => {
     if (!activeTrip) return;
 
     try {
-      console.log('='.repeat(60));
-      console.log('🏁 FINALIZANDO VIAJE');
-      console.log('='.repeat(60));
-
-      // 1. Detener simulación
-      try {
-        await simulationService.stop(activeTrip.id);
-        console.log('✅ Simulación detenida');
-      } catch (simError) {
-        console.warn('⚠️ Simulación ya estaba detenida');
-      }
-
-      // 2. Completar viaje
-      await transportService.completeTrip(activeTrip.id);
-      console.log('✅ Viaje completado');
-
-      // 3. Limpiar estado
-      setActiveTrip(null);
-      setSelectedRouteId('');
-      setRoutePolyline('');
-
-      console.log('='.repeat(60));
-      console.log('✅ VIAJE FINALIZADO');
-      console.log('='.repeat(60));
-
-      toast({
-        title: '🏁 Viaje finalizado',
-        description: 'El viaje se completó exitosamente',
+      // Iniciar Simulación GPS
+      await simulationService.start({
+        trip_id: activeTrip.id,
+        route_id: selectedRouteId,
+        driver_id: driverProfile!.id,
       });
 
+      setTripState("IN_ROUTE");
+      
+      toast({ 
+        title: "Ruta Iniciada", 
+        description: "Telemetría transmitiendo en vivo.",
+        className: "bg-green-50 border-green-200"
+      });
     } catch (error: any) {
-      console.error('❌ Error al finalizar viaje:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Intenta nuevamente',
-      });
-      // Limpiar de todas formas
-      setActiveTrip(null);
+      toast({ variant: "destructive", title: "Error de simulación", description: error.message });
     }
   };
 
-  /* ======================================================
-     RENDERIZADO
-  ====================================================== */
+  const handleCompleteTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      try { await simulationService.stop(activeTrip.id); } catch {} // Intentar detener simulación
+      
+      await transportService.completeTrip(activeTrip.id);
+
+      // Reset total
+      setActiveTrip(null);
+      setSelectedRouteId("");
+      setRoutePolyline("");
+      setTripState("CONFIG");
+      setPassengerCount(0);
+
+      toast({ title: "Viaje Finalizado", description: "La unidad está libre nuevamente." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    }
+  };
+
+  // --- LOADER ---
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-200">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-12 w-12 text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Cargando dashboard...</p>
-        </div>
+      <div className="h-[calc(100vh-6rem)] flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-950">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+        <p className="text-slate-500 font-bold animate-pulse">Cargando sistema de control...</p>
       </div>
     );
   }
 
+  // --- RENDER ---
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-6rem)] p-4 bg-slate-200 dark:bg-slate-950">
-      {/* ==========================================
-          🗺️ MAPA Y TELEMETRÍA
-      ========================================== */}
-      <div className="flex-1 bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-lg border relative">
-        {/* 🔑 PASAMOS socketLocation AL MAPA */}
-        <LiveRouteMap
-          routePolyline={routePolyline}
-          busLocation={busLocation} // ✅ ESTO ES LO QUE ESTABA MAL
-        />
-
-        {/* Estado de conexión */}
-        <div className="absolute top-6 right-6 z-20">
-          <div
-            className={`px-4 py-2 rounded-full flex items-center gap-2 font-bold text-[10px] shadow-md ${
-              isConnected
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}
-          >
-            {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {isConnected ? 'SISTEMA ONLINE' : 'TELEMETRÍA OFFLINE'}
-          </div>
+    <div className="h-[calc(100vh-6rem)] p-4 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 bg-slate-100 dark:bg-slate-950 transition-colors animate-fade-in">
+      
+      {/* =======================================================
+          COLUMNA IZQUIERDA: MAPA & HUD (Heads-Up Display)
+      ======================================================= */}
+      <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col">
+        
+        {/* COMPONENTE DE MAPA */}
+        <div className="absolute inset-0 z-0">
+            <LiveRouteMap
+              routePolyline={routePolyline}
+              busLocation={busLocation}
+            />
         </div>
 
-        {/* Info del conductor */}
+        {/* --- CAPA SUPERIOR (HUD) --- */}
+        
+        {/* 1. STATUS BADGE (Top Right) */}
+        <div className="absolute top-6 right-6 z-10 flex flex-col gap-2 items-end">
+             <div className={`px-4 py-2 rounded-full flex items-center gap-2 text-xs font-black uppercase tracking-wider shadow-lg backdrop-blur-md border ${
+                 isConnected 
+                 ? "bg-green-500/90 text-white border-green-400 animate-pulse-slow" 
+                 : "bg-slate-800/90 text-slate-400 border-slate-600"
+             }`}>
+                {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
+                {isConnected ? "SISTEMA ONLINE" : "OFFLINE"}
+             </div>
+
+             {activeTrip && (
+                 <div className="px-3 py-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+                    ID VIAJE: #{activeTrip.id}
+                 </div>
+             )}
+        </div>
+
+        {/* 2. DRIVER PROFILE (Top Left) */}
         {driverProfile && (
-          <div className="absolute top-6 left-6 z-20">
-            <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md">
-              <p className="text-xs font-bold text-gray-600">
-                {driverProfile.name}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 🔍 DEBUG: Mostrar coordenadas actuales */}
-        {socketLocation && (
-          <div className="absolute bottom-6 left-6 z-20 bg-black/80 text-white px-3 py-2 rounded-lg text-xs font-mono">
-            <div>Lat: {socketLocation.lat.toFixed(6)}</div>
-            <div>Lng: {socketLocation.lng.toFixed(6)}</div>
-            <div>Heading: {socketLocation.heading?.toFixed(1)}°</div>
-            <div>Speed: {socketLocation.speed?.toFixed(1)} km/h</div>
-          </div>
-        )}
-      </div>
-
-      {/* ==========================================
-          🎛️ PANEL DE CONTROL
-      ========================================== */}
-      <div className="w-full lg:w-96 flex flex-col gap-6">
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 shadow-sm border">
-          <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-4">
-            Control de Misión
-          </h3>
-
-          {!vehicle ? (
-            /* SIN VEHÍCULO */
-            <div className="space-y-4">
-              <p className="text-xs font-bold text-slate-500">
-                Debes vincular una unidad:
-              </p>
-              {availableVehicles.length === 0 ? (
-                <p className="text-xs text-gray-400">
-                  No hay vehículos disponibles
-                </p>
-              ) : (
-                availableVehicles.map((v) => (
-                  <Button
-                    key={v.id}
-                    onClick={async () => {
-                      try {
-                        await vehicleService.claimVehicle(v.id);
-                        toast({
-                          title: 'Vehículo asignado',
-                          description: `Unidad ${v.plate} vinculada`,
-                        });
-                        await loadInitialData();
-                      } catch (error) {
-                        toast({
-                          variant: 'destructive',
-                          title: 'Error',
-                          description: 'No se pudo vincular el vehículo',
-                        });
-                      }
-                    }}
-                    className="w-full justify-between h-14 rounded-2xl"
-                  >
-                    <span className="font-bold">{v.plate}</span>
-                    <Bus size={18} />
-                  </Button>
-                ))
-              )}
-            </div>
-          ) : !activeTrip ? (
-            /* CON VEHÍCULO: INICIO DE VIAJE */
-            <div className="space-y-4">
-              {/* Info del vehículo */}
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 flex items-center gap-3">
-                <Bus className="text-blue-600" />
+            <div className="absolute top-6 left-6 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-3 pr-6 rounded-full shadow-lg border border-white/50 dark:border-slate-700 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-lg border-2 border-white shadow-sm">
+                    {driverProfile.name.charAt(0)}
+                </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">
-                    Vehículo
-                  </p>
-                  <p className="text-sm font-black text-blue-600">
-                    {vehicle.plate}
-                  </p>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Operador</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-white leading-tight">{driverProfile.name}</p>
                 </div>
-              </div>
-
-              {/* Selector de ruta */}
-              <select
-                className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border-none text-sm font-bold"
-                value={selectedRouteId}
-                onChange={(e) => setSelectedRouteId(e.target.value)}
-              >
-                <option value="">Seleccionar Ruta...</option>
-                {routes.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-
-              {/* Botón de inicio */}
-              <Button
-                onClick={handleStartTrip}
-                disabled={!selectedRouteId}
-                className="w-full h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black text-lg shadow-xl"
-              >
-                <Play className="mr-2" size={24} />
-                INICIAR VIAJE
-              </Button>
             </div>
-          ) : (
-            /* VIAJE EN CURSO */
-            <div className="space-y-4">
-              {/* Indicador de transmisión */}
-              <div className="p-6 bg-green-50 dark:bg-green-900/20 rounded-3xl border border-green-200 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                  <p className="text-green-600 font-black text-xs">
-                    TRANSMITIENDO EN VIVO
-                  </p>
+        )}
+
+        {/* 3. TELEMETRÍA (Bottom Left - Solo en Ruta) */}
+        {tripState === 'IN_ROUTE' && (
+            <div className="absolute bottom-6 left-6 z-10 bg-slate-900/90 backdrop-blur-md text-white p-5 rounded-3xl shadow-2xl border border-slate-700/50 flex gap-6 min-w-[200px]">
+                <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><Gauge size={12}/> Velocidad</p>
+                    <p className="text-3xl font-black">{socketLocation?.speed?.toFixed(0) || 0} <span className="text-base font-normal text-slate-400">km/h</span></p>
                 </div>
-                <p className="text-slate-400 text-[10px]">
-                  Trip ID: #{activeTrip.id}
-                </p>
-              </div>
-
-              {/* Botón de finalización */}
-              <Button
-                onClick={handleCompleteTrip}
-                variant="destructive"
-                className="w-full h-14 rounded-2xl font-bold"
-              >
-                <CheckCircle className="mr-2" />
-                FINALIZAR RUTA
-              </Button>
+                <div className="w-px bg-slate-700"></div>
+                <div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><MapPin size={12}/> Rumbo</p>
+                    <p className="text-3xl font-black">{socketLocation?.heading?.toFixed(0) || 0}<span className="text-base font-normal text-slate-400">°</span></p>
+                </div>
             </div>
-          )}
-        </div>
+        )}
+
       </div>
+
+      {/* =======================================================
+          COLUMNA DERECHA: PANEL DE CONTROL
+      ======================================================= */}
+      <aside className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col h-full">
+        
+        {/* HEADER DEL PANEL */}
+        <div className="mb-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <Navigation className="text-blue-600" />
+                Panel de Control
+            </h2>
+            <p className="text-xs text-slate-400 font-medium mt-1">Gestión de ruta y pasajeros</p>
+        </div>
+
+        {/* INFORMACIÓN DEL VEHÍCULO */}
+        {vehicle ? (
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 mb-6 flex items-center justify-between border border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                    <div className="bg-white dark:bg-slate-700 p-2.5 rounded-xl text-slate-600 dark:text-slate-300 shadow-sm">
+                        <Bus size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase">Unidad Asignada</p>
+                        <p className="text-sm font-black text-slate-800 dark:text-white">{vehicle.plate}</p>
+                    </div>
+                </div>
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+            </div>
+        ) : (
+            <div className="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-sm font-medium flex gap-2">
+                <AlertTriangle size={18} /> No tienes vehículo asignado.
+            </div>
+        )}
+
+        {/* CONTROLES DINÁMICOS (Lógica de Estados) */}
+        <div className="flex-1 flex flex-col justify-center space-y-4">
+            
+            {/* ESTADO 1: CONFIGURACIÓN */}
+            {tripState === 'CONFIG' && (
+                <div className="space-y-4 animate-in slide-in-from-right">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Seleccionar Ruta</label>
+                    <select
+                        value={selectedRouteId}
+                        onChange={(e) => setSelectedRouteId(e.target.value)}
+                        className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl font-bold text-slate-700 dark:text-white border-transparent focus:border-blue-500 focus:ring-0 transition-all outline-none"
+                    >
+                        <option value="">-- Elige una ruta --</option>
+                        {routes.map((r) => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                    </select>
+
+                    <Button
+                        onClick={handleCreateTrip}
+                        disabled={!selectedRouteId}
+                        className="w-full h-16 rounded-2xl text-lg font-black bg-blue-600 hover:bg-blue-700 shadow-blue-900/20 shadow-xl"
+                    >
+                        <Play className="mr-2 fill-current" /> PREPARAR UNIDAD
+                    </Button>
+                </div>
+            )}
+
+            {/* ESTADO 2: ABORDAJE (Waiting) */}
+            {tripState === 'BOARDING' && (
+                <div className="space-y-6 text-center animate-in zoom-in-95">
+                    <div className="w-24 h-24 bg-yellow-100 dark:bg-yellow-900/20 rounded-full flex items-center justify-center mx-auto text-yellow-600 animate-bounce-slow">
+                        <Users size={40} />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white">Abordando Pasajeros</h3>
+                        <p className="text-sm text-slate-500 mt-2">El viaje está activo pero detenido. Espera a que suban los estudiantes.</p>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-dashed border-slate-300 dark:border-slate-700">
+                        <p className="text-xs font-bold text-slate-400 uppercase">Estado Actual</p>
+                        <p className="text-lg font-bold text-blue-600">En Parada / Espera</p>
+                    </div>
+
+                    <Button
+                        onClick={handleStartRoute}
+                        className="w-full h-20 rounded-2xl text-xl font-black bg-green-600 hover:bg-green-700 shadow-green-900/30 shadow-2xl hover:scale-[1.02] transition-transform"
+                    >
+                        <Navigation className="mr-3 w-8 h-8" /> INICIAR RUTA
+                    </Button>
+                </div>
+            )}
+
+            {/* ESTADO 3: EN RUTA */}
+            {tripState === 'IN_ROUTE' && (
+                <div className="space-y-6 animate-in fade-in">
+                    <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] border border-blue-100 dark:border-blue-800/50 text-center relative overflow-hidden">
+                         <div className="absolute inset-0 bg-blue-500/5 animate-pulse"></div>
+                         <p className="text-blue-600 dark:text-blue-400 text-xs font-black uppercase tracking-widest mb-2">Transmisión Activa</p>
+                         <h3 className="text-3xl font-black text-blue-800 dark:text-white">EN RUTA</h3>
+                         <p className="text-xs text-blue-600/70 mt-1">Compartiendo ubicación real</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">Pasajeros</p>
+                            <p className="text-2xl font-black text-slate-800 dark:text-white">--</p>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl text-center">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">Próx. Parada</p>
+                            <p className="text-sm font-bold text-slate-800 dark:text-white">Fac. Artes</p>
+                        </div>
+                    </div>
+
+                    <Button
+                        onClick={handleCompleteTrip}
+                        variant="destructive"
+                        className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl mt-auto"
+                    >
+                        <Power className="mr-2" /> FINALIZAR VIAJE
+                    </Button>
+                </div>
+            )}
+
+            {/* ESTADO: IDLE (Sin vehículo) */}
+            {tripState === 'IDLE' && (
+                <div className="text-center p-6 opacity-50">
+                    <Bus size={48} className="mx-auto mb-4 text-slate-300" />
+                    <p className="text-slate-500 font-medium">Contacta al administrador para asignación de unidad.</p>
+                </div>
+            )}
+
+        </div>
+
+      </aside>
     </div>
   );
 };

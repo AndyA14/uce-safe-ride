@@ -36,7 +36,6 @@ const Footer: React.FC = () => {
             <ul className="space-y-3">
               <li><a href="#" className="text-white/70 hover:text-white transition-colors">Inicio</a></li>
               <li><a href="#features" className="text-white/70 hover:text-white transition-colors">Características</a></li>
-              <li><a href="#" className="text-white/70 hover:text-white transition-colors">Rutas</a></li>
               <li><a href="#" className="text-white/70 hover:text-white transition-colors">Soporte</a></li>
             </ul>
           </div>
@@ -63,7 +62,7 @@ const Footer: React.FC = () => {
 
         {/* Copyright */}
         <div className="border-t border-white/10 mt-12 pt-8 text-center text-white/50 text-sm">
-          © 2024 UCE Safe Ride. Universidad Central del Ecuador. Todos los derechos reservados.
+          © 2026 UCE Safe Ride. Universidad Central del Ecuador. Todos los derechos reservados.
         </div>
       </div>
     </footer>
