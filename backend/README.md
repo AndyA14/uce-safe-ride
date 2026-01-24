@@ -1,107 +1,107 @@
-# 🔙 UCE Safe Ride - Backend Services
+🔙 UCE Safe Ride - Backend Services
+UCE Safe Ride Backend is the central processing unit of the platform. It is designed as a set of distributed microservices, created to handle complex transportation logic, real-time geolocation tracking using MQTT, and secure user management for the university community.
 
-**UCE Safe Ride Backend** es la unidad central de procesamiento de la plataforma. Está diseñado como un conjunto de microservicios distribuidos, creados para manejar lógica de transporte compleja, seguimiento en tiempo real de geolocalización mediante MQTT y gestión segura de usuarios para la comunidad universitaria.
+🏗️ General Architecture
+The backend follows a Microservices Architecture pattern, ensuring separation of responsibilities and independent scalability. The system is based on:
 
-## 🏗️ Arquitectura General
+REST APIs for standard CRUD operations and user management.
 
-El backend sigue un patrón de **Arquitectura de Microservicios**, asegurando la separación de responsabilidades y escalabilidad independiente. El sistema se basa en:
+MQTT (Mosquitto) for high-performance, low-latency telemetry (location updates).
 
-- **REST APIs** para operaciones CRUD estándar y gestión de usuarios.
-- **MQTT (Mosquitto)** para telemetría de alto rendimiento y baja latencia (actualizaciones de ubicación).
-- **WebSockets** para enviar actualizaciones en tiempo real a las aplicaciones cliente.
-- **Bibliotecas Compartidas** para mantener la consistencia del código a través de los servicios.
+WebSockets to send real-time updates to client apps.
 
-## 📂 Estructura del Proyecto
+Shared Libraries to maintain code consistency across services.
 
-La estructura del proyecto se basa en la descomposición de servicios:
+📂 Project Structure
+The project structure is based on service decomposition:
 
 backend/
-├── mosquitto/ # Configuración del broker MQTT
-├── postgres-init/ # Scripts de inicialización de base de datos
-├── services/ # Código fuente de los microservicios
-│ ├── auth-service/ # Gestión de identidad de usuarios y JWT
-│ ├── driver-service/ # Perfiles de conductores y su estado
-│ ├── notification-service/ # Notificaciones por correo/push
-│ ├── route-service/ # Optimización de rutas y búsqueda de trayectos
-│ ├── simulation-service/ # Simulación de tráfico y viajes para pruebas
-│ ├── stop-service/ # Gestión de paradas de buses o puntos de recogida
-│ ├── student-service/ # Perfiles de estudiantes y validación
-│ ├── tracking-service/ # Ingesta de datos en vivo de ubicación
-│ ├── trip-service/ # Ciclo de vida del viaje (Solicitud -> Finalización)
-│ ├── vehicle-service/ # Registro de vehículos (autobuses, coches)
-│ └── ws-gateway/ # Gateway de WebSocket para eventos en tiempo real
-├── shared/ # Modelos y utilidades compartidas de Pydantic
-├── .env # Variables globales de entorno
-├── docker-compose.yml # Orquestación de todos los servicios
-└── README.md # Documentación del proyecto
+├── mosquitto/           # MQTT broker configuration
+├── postgres-init/       # Database initialization scripts
+├── services/            # Microservices source code
+│   ├── auth-service/    # User identity management and JWT
+│   ├── driver-service/  # Driver profiles and their status
+│   ├── notification-service/ # Email/push notifications
+│   ├── route-service/   # Route optimization and journey search
+│   ├── simulation-service/ # Traffic and journey simulation for testing
+│   ├── stop-service/    # Bus stop or pickup point management
+│   ├── student-service/ # Student profiles and validation
+│   ├── tracking-service/ # Real-time location data ingestion
+│   ├── trip-service/    # Trip lifecycle (Request -> Completion)
+│   ├── vehicle-service/ # Vehicle registration (buses, cars)
+│   └── ws-gateway/      # WebSocket gateway for real-time events
+├── shared/              # Shared Pydantic models and utilities
+├── .env                 # Global environment variables
+├── docker-compose.yml   # Orchestration of all services
+└── README.md            # Project documentation
 
 
-## 🛠 Tech Stack
+🛠 Tech Stack
+The project uses a robust technology stack optimized for performance and scalability:
 
-El proyecto utiliza una pila tecnológica robusta y optimizada para el rendimiento y la escalabilidad:
+Component	Technology	Role
+Runtime	Python 3.10+	Main language for microservices.
+Framework	FastAPI	High-performance asynchronous web framework.
+Messaging	Eclipse Mosquitto	MQTT broker for IoT location tracking.
+Real-Time	WebSockets	Live updates to frontend clients.
+Database	PostgreSQL	Relational data persistence.
+Containerization	Docker	Service isolation and deployment.
+Orchestration	Docker Compose	Management of multi-service containers locally.
 
-| Componente           | Tecnología            | Rol                                                      |
-|----------------------|-----------------------|----------------------------------------------------------|
-| **Runtime**          | Python 3.10+          | Lenguaje principal para microservicios.                   |
-| **Framework**        | FastAPI               | Framework web asíncrono de alto rendimiento.              |
-| **Mensajería**       | Eclipse Mosquitto     | Broker MQTT para seguimiento de ubicación IoT.            |
-| **Tiempo Real**      | WebSockets            | Actualizaciones en vivo para clientes frontend.           |
-| **Base de Datos**    | PostgreSQL            | Persistencia de datos relacionales.                       |
-| **Containerización** | Docker                | Aislamiento de servicios y despliegue.                    |
-| **Orquestación**     | Docker Compose        | Gestión de contenedores multi-servicio localmente.        |
+🔌 Service Catalog
 
-## 🔌 Catálogo de Servicios
+Service	Port (Default)	Description
+Auth	8001	Handles login, registration, and token validation.
+Student	8002	Manages student data and academic verification.
+Driver	8003	Manages driver validation and availability.
+Trip	8004	Orchestrates the trip booking flow.
+Tracking	8005	Processes MQTT location data streams.
+WS Gateway	8006	Aggregates events and sends them to clients via WebSockets.
+Simulation	80XX	Generates synthetic traffic for load testing.
 
-| Servicio                | Puerto (Por defecto) | Descripción                                                  |
-|-------------------------|----------------------|--------------------------------------------------------------|
-| **Auth**                | 8001                 | Maneja el inicio de sesión, registro y validación de tokens. |
-| **Student**             | 8002                 | Gestiona los datos de estudiantes y la verificación académica.|
-| **Driver**              | 8003                 | Gestiona la validación de conductores y su disponibilidad.   |
-| **Trip**                | 8004                 | Orquesta el flujo de reserva de viajes.                      |
-| **Tracking**            | 8005                 | Procesa los flujos MQTT de ubicación.                        |
-| **WS Gateway**          | 8006                 | Agrega eventos y los envía a los clientes a través de WS.    |
-| **Simulation**          | 80XX                 | Genera tráfico sintético para pruebas de carga.              |
+Note: Port numbers are illustrative; please verify in your docker-compose.yml file.
 
-> **Nota**: Los números de puerto son ilustrativos, por favor verifica en tu archivo `docker-compose.yml`.
+🚀 Getting Started
+Prerequisites
 
-## 🚀 Getting Started
+Docker Desktop (Engine 20.10+)
 
-### Requisitos previos
+Docker Compose (v2.0+)
 
-- **Docker Desktop** (Engine 20.10+)
-- **Docker Compose** (v2.0+)
+Environment Setup:
+Ensure the .env file is present at the root of backend/ with the necessary database credentials and secret keys.
 
-### Configuración del Ecosistema
+Start the Services:
+Run the following command from the backend directory:
 
-1. **Configuración del Entorno**:  
-   Asegúrate de que el archivo `.env` esté presente en la raíz de `backend/` con las credenciales necesarias de la base de datos y las claves secretas.
+docker-compose up --build
 
-2. **Iniciar los Servicios**:  
-   Ejecuta el siguiente comando desde el directorio de backend:
-   ```bash
-   docker-compose up --build
-Esto iniciará todos los microservicios, la base de datos de Postgres y el broker Mosquitto.
 
-Verificar el Estado:
-Comprueba que todos los contenedores estén saludables con:
+This will start all the microservices, the PostgreSQL database, and the Mosquitto broker.
+
+Verify the Status:
+Check that all containers are healthy with:
 
 docker-compose ps
-📡 Flujo de Datos (Seguimiento)
-La app móvil publica la ubicación en Mosquitto (Topic: u/loc).
 
-El Tracking Service se suscribe al MQTT, procesa las coordenadas y las guarda en la base de datos.
 
-El WS Gateway transmite la actualización a los clientes relevantes mediante WebSockets.
+📡 Data Flow (Tracking)
 
-🧪 Pruebas
-Puedes interactuar con las APIs de cada servicio a través de su documentación Swagger auto-generada (cuando se ejecuta localmente):
+The mobile app publishes location to Mosquitto (Topic: u/loc).
+
+The Tracking Service subscribes to MQTT, processes coordinates, and stores them in the database.
+
+The WS Gateway broadcasts the update to relevant clients via WebSockets.
+
+🧪 Testing
+You can interact with each service’s APIs through its auto-generated Swagger documentation (when running locally):
 
 Auth Service: http://localhost:8001/docs
 
 Trip Service: http://localhost:8004/docs
 
-(Así sucesivamente para otros servicios).
+(And so on for other services.)
 
-📄 Licencia
-Este proyecto es un proyecto interno de la universidad.
-Todos los derechos reservados © 2025.
+📄 License
+This project is an internal university project.
+All rights reserved © 2026.

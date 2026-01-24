@@ -1,79 +1,100 @@
-# 🚕 UCE Safe Ride - Secure Campus Mobility Platform
+🚕 UCE Safe Ride - Secure Campus Mobility Platform
+UCE Safe Ride is a modern, distributed transportation platform designed to ensure safe, efficient, and real-time movement for the university community. It connects the institutional fleet with students and faculty, optimizing routes and prioritizing passenger safety through advanced telemetry.
 
-**UCE Safe Ride** es una plataforma moderna y distribuida de transporte diseñada para garantizar un desplazamiento seguro, eficiente y en tiempo real para la comunidad universitaria. Conecta la flota de transporte institucional con estudiantes y personal docente, optimizando rutas y priorizando la seguridad de los pasajeros mediante telemetría avanzada.
+🛡️ What is UCE Safe Ride?
+UCE Safe Ride is a distributed microservices-based system that transforms the way the university community moves. Unlike traditional transportation, our platform offers:
 
-## 🛡️ ¿Qué es UCE Safe Ride?
+Intelligent Fleet Management: Drivers are paired with specific vehicles and active routes in real-time.
 
-UCE Safe Ride es un sistema distribuido basado en microservicios que transforma la manera en que la comunidad universitaria se desplaza. A diferencia del transporte tradicional, nuestra plataforma ofrece:
+Secure Access: Strict validation using university credentials to ensure all passengers are verified members of the community.
 
-- **Gestión Inteligente de Flota**: Los conductores se asocian a vehículos específicos y rutas activas en tiempo real.
-- **Acceso Seguro**: Validación estricta mediante credenciales universitarias para garantizar que todos los pasajeros sean miembros verificados de la comunidad.
-- **Telemetría en Vivo**: Seguimiento en tiempo real de la ubicación mediante WebSockets y Kafka para actualizaciones de alta frecuencia.
-- **Alertas Inteligentes**: Notificaciones integradas para anomalías de tráfico, desvíos de ruta y estimaciones de llegada.
+Live Telemetry: Real-time tracking of vehicle location via WebSockets and Kafka for high-frequency updates.
 
-La plataforma aprovecha tecnologías nativas de la nube y servicios geoespaciales para asegurar alta disponibilidad, baja latencia y un entorno seguro para todos los usuarios.
+Smart Alerts: Integrated notifications for traffic anomalies, route detours, and arrival estimates.
 
-## 🎯 Objetivos
+The platform leverages cloud-native technologies and geospatial services to ensure high availability, low latency, and a secure environment for all users.
 
-- **Mejorar la Seguridad Estudiantil**: Crear una red confiable donde cada unidad y pasajero estén monitoreados.
-- **Optimizar la Movilidad**: Reducir la incertidumbre proporcionando ETAs precisos y la ubicación en tiempo real de las unidades.
-- **Sostenibilidad**: Promover el uso del transporte colectivo institucional para reducir la huella de carbono.
-- **Excelencia Técnica**: Demostrar una arquitectura escalable y tolerante a fallos capaz de manejar picos de tráfico utilizando patrones basados en eventos.
+🎯 Objectives
 
-## 🔍 Características Clave
+Improve Student Safety: Create a reliable network where each unit and passenger is monitored.
 
-### Para Estudiantes (App Pasajero)
+Optimize Mobility: Reduce uncertainty by providing accurate ETAs and real-time location of vehicles.
 
-- **Geolocalización en Vivo**: Ver las unidades activas moviéndose en el mapa en tiempo real con animaciones suaves.
-- **Descubrimiento de Rutas**: Filtrar unidades visibles por rutas específicas (e.g., "Ruta Norte", "Ruta Valles").
-- **Embarque Digital**: Función de "Check-in" para registrar la presencia en la unidad.
-- **Notificaciones Ricas**: Alertas flotantes para el estado del servicio, incidentes de tráfico y avisos de llegada.
+Sustainability: Promote the use of institutional collective transport to reduce the carbon footprint.
 
-### Para Conductores (App Conductor)
+Technical Excellence: Demonstrate a scalable, fault-tolerant architecture capable of handling traffic spikes using event-driven patterns.
 
-- **Gestión de Viajes**: Configuración fácil del Vehículo + Ruta para comenzar la transmisión.
-- **Contador de Pasajeros**: Visibilidad en tiempo real de los estudiantes embarcados.
-- **Reporte de Incidentes**: Alerta de un toque para notificar al centro de control y a los estudiantes sobre demoras o problemas.
+🔍 Key Features
 
-## 📚 Tech Stack
+For Students (Passenger App)
 
-El proyecto utiliza una robusta y poliglota pila tecnológica optimizada para rendimiento y escalabilidad:
+Live Geolocation: View active units moving on the map in real-time with smooth animations.
 
-### Frontend (Web & Móvil)
+Route Discovery: Filter visible units by specific routes (e.g., "North Route," "Valleys Route").
 
-- **Framework**: React + Vite (TypeScript)
-- **Estilos**: Tailwind CSS + ShadcnUI
-- **Mapas**: Google Maps Javascript API
-- **Estado**: Context API + Hooks personalizados
+Digital Boarding: "Check-in" function to register presence on the vehicle.
 
-### Backend (Microservicios)
+Rich Notifications: Floating alerts for service status, traffic incidents, and arrival notices.
 
-- **Lenguaje**: Python 3.11+
-- **Framework**: FastAPI
-- **Gateway**: WebSocket Gateway (Implementación personalizada)
+For Drivers (Driver App)
 
-### Datos & Mensajería (El Núcleo)
+Trip Management: Easy setup of Vehicle + Route to start broadcasting.
 
-- **Event Streaming**: Apache Kafka (Telemetría en tiempo real)
-- **Message Broker**: RabbitMQ (Tareas asincrónicas y comunicaciones entre servicios)
-- **Caching**: Redis (Cache de sesión y ubicación en vivo)
-- **Bases de Datos**: PostgreSQL (Datos relacionales), MongoDB (Logs/Historial)
+Passenger Counter: Real-time visibility of boarded students.
 
-### DevOps & Infraestructura
+Incident Reporting: One-touch alert to notify control center and students about delays or issues.
 
-- **Containerización**: Docker & Docker Compose
-- **IaC**: Terraform
-- **Proveedor de Nube**: AWS (EC2, RDS, EKS listo)
-- **CI/CD**: GitHub Actions (Construcción y despliegue automatizados)
+📚 Tech Stack
+The project uses a robust, polyglot technology stack optimized for performance and scalability:
 
-## 🌎 ¿Quiénes son los beneficiarios?
+Frontend (Web & Mobile)
 
-- **Estudiantes Universitarios**: Buscando transporte confiable con horarios predecibles.
-- **Operadores de Transporte**: Necesitando herramientas modernas para gestionar sus rutas y comunicarse con los pasajeros.
-- **Administración Universitaria**: Para monitorear el uso de la flota y mejorar la seguridad en el campus.
-- **Desarrolladores**: Como implementación de referencia de un sistema distribuido geoespacial.
+Framework: React + Vite (TypeScript)
 
-## 📄 Licencia
+Styling: Tailwind CSS + ShadcnUI
 
-Este proyecto fue desarrollado como parte del curso académico de **Sistemas Distribuidos** en la **Universidad Central del Ecuador**.  
-Todos los derechos reservados © 2026.
+Maps: Google Maps JavaScript API
+
+State: Context API + Custom Hooks
+
+Backend (Microservices)
+
+Language: Python 3.11+
+
+Framework: FastAPI
+
+Gateway: WebSocket Gateway (Custom implementation)
+
+Data & Messaging (Core)
+
+Event Streaming: Apache Kafka (Real-time telemetry)
+
+Message Broker: RabbitMQ (Asynchronous tasks and service communication)
+
+Caching: Redis (Session cache and live location)
+
+Databases: PostgreSQL (Relational data), MongoDB (Logs/History)
+
+DevOps & Infrastructure
+
+Containerization: Docker & Docker Compose
+
+IaC: Terraform
+
+Cloud Provider: AWS (EC2, RDS, EKS ready)
+
+CI/CD: GitHub Actions (Automated build and deployment)
+
+🌎 Who are the beneficiaries?
+
+University Students: Seeking reliable transportation with predictable schedules.
+
+Transport Operators: Needing modern tools to manage their routes and communicate with passengers.
+
+University Administration: For monitoring fleet usage and improving campus safety.
+
+Developers: As a reference implementation of a distributed geospatial system.
+
+📄 License
+This project was developed as part of the Distributed Systems course at the Central University of Ecuador.
+All rights reserved © 2026.
