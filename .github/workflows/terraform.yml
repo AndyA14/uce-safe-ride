@@ -1,37 +1,41 @@
 name: 🚀 Terraform QA (AWS Academy)
 
+# Definir cuándo ejecutar el flujo de trabajo:
 on:
-  workflow_dispatch:
+  push:
+    branches: 
+      - "qa"  # Se ejecuta cuando hay un push a la rama "qa"
+  workflow_dispatch:  # Permite ejecutar el flujo de trabajo manualmente desde la interfaz de GitHub
 
 jobs:
   terraform:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Se ejecuta en un contenedor de Ubuntu
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # Acción para hacer checkout del código del repositorio
 
       - name: 🧰 Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v3  # Configura Terraform
 
       - name: 🔎 Terraform Init
-        working-directory: terraform/environments/qa
-        run: terraform init
+        working-directory: terraform/environments/qa  # Directorio de trabajo donde están los archivos de configuración de Terraform
+        run: terraform init  # Inicializa el directorio de Terraform
 
       - name: 📐 Terraform Plan
-        working-directory: terraform/environments/qa
-        run: terraform plan
+        working-directory: terraform/environments/qa  # Directorio donde se encuentran los archivos de configuración
+        run: terraform plan  # Muestra el plan de ejecución de Terraform
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Accede a las credenciales de AWS almacenadas en Secrets
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Si usas roles temporales con AWS STS
+          AWS_REGION: ${{ secrets.AWS_REGION }}  # La región de AWS
 
       - name: 🚀 Terraform Apply
-        working-directory: terraform/environments/qa
-        run: terraform apply -auto-approve
+        working-directory: terraform/environments/qa  # Directorio de trabajo donde se encuentran los archivos de Terraform
+        run: terraform apply -auto-approve  # Aplica los cambios de Terraform automáticamente sin pedir confirmación
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Requiere las mismas credenciales para aplicar los cambios
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Si estás utilizando autenticación de sesión temporal
+          AWS_REGION: ${{ secrets.AWS_REGION }}  # La región en la que se aplica Terraform
