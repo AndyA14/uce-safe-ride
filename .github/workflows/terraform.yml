@@ -1,6 +1,5 @@
 name: 🚀 Terraform QA (AWS Academy)
 
-# Definir cuándo ejecutar el flujo de trabajo:
 on:
   push:
     branches: 
@@ -21,6 +20,11 @@ jobs:
       - name: 🔎 Terraform Init
         working-directory: terraform/environments/qa  # Directorio de trabajo donde están los archivos de configuración de Terraform
         run: terraform init  # Inicializa el directorio de Terraform
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Accede a las credenciales de AWS almacenadas en Secrets
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}  # Si usas roles temporales con AWS STS
+          AWS_REGION: ${{ secrets.AWS_REGION }}  # La región de AWS
 
       - name: 📐 Terraform Plan
         working-directory: terraform/environments/qa  # Directorio donde se encuentran los archivos de configuración
