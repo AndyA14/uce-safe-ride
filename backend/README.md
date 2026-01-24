@@ -1,8 +1,10 @@
-🔙 UCE Safe Ride - Backend Services
+UCE Safe Ride - Backend Services
+
 UCE Safe Ride Backend is the central processing unit of the platform. It is designed as a set of distributed microservices, created to handle complex transportation logic, real-time geolocation tracking using MQTT, and secure user management for the university community.
 
 🏗️ General Architecture
-The backend follows a Microservices Architecture pattern, ensuring separation of responsibilities and independent scalability. The system is based on:
+
+The backend follows a Microservices Architecture pattern, ensuring separation of concerns and independent scalability for each component. The system is based on:
 
 REST APIs for standard CRUD operations and user management.
 
@@ -13,6 +15,7 @@ WebSockets to send real-time updates to client apps.
 Shared Libraries to maintain code consistency across services.
 
 📂 Project Structure
+
 The project structure is based on service decomposition:
 
 backend/
@@ -35,8 +38,8 @@ backend/
 ├── docker-compose.yml   # Orchestration of all services
 └── README.md            # Project documentation
 
-
 🛠 Tech Stack
+
 The project uses a robust technology stack optimized for performance and scalability:
 
 Component	Technology	Role
@@ -46,10 +49,8 @@ Messaging	Eclipse Mosquitto	MQTT broker for IoT location tracking.
 Real-Time	WebSockets	Live updates to frontend clients.
 Database	PostgreSQL	Relational data persistence.
 Containerization	Docker	Service isolation and deployment.
-Orchestration	Docker Compose	Management of multi-service containers locally.
-
+Orchestration	Docker Compose	Multi-service container management locally.
 🔌 Service Catalog
-
 Service	Port (Default)	Description
 Auth	8001	Handles login, registration, and token validation.
 Student	8002	Manages student data and academic verification.
@@ -69,9 +70,11 @@ Docker Desktop (Engine 20.10+)
 Docker Compose (v2.0+)
 
 Environment Setup:
+
 Ensure the .env file is present at the root of backend/ with the necessary database credentials and secret keys.
 
 Start the Services:
+
 Run the following command from the backend directory:
 
 docker-compose up --build
@@ -80,21 +83,22 @@ docker-compose up --build
 This will start all the microservices, the PostgreSQL database, and the Mosquitto broker.
 
 Verify the Status:
+
 Check that all containers are healthy with:
 
 docker-compose ps
 
-
 📡 Data Flow (Tracking)
 
-The mobile app publishes location to Mosquitto (Topic: u/loc).
+The mobile app publishes location data to Mosquitto (Topic: u/loc).
 
-The Tracking Service subscribes to MQTT, processes coordinates, and stores them in the database.
+The Tracking Service subscribes to MQTT, processes the coordinates, and stores them in the database.
 
 The WS Gateway broadcasts the update to relevant clients via WebSockets.
 
 🧪 Testing
-You can interact with each service’s APIs through its auto-generated Swagger documentation (when running locally):
+
+You can interact with each service's APIs through its auto-generated Swagger documentation (when running locally):
 
 Auth Service: http://localhost:8001/docs
 
@@ -103,5 +107,6 @@ Trip Service: http://localhost:8004/docs
 (And so on for other services.)
 
 📄 License
-This project is an internal university project.
+
+This project is an internal university initiative.
 All rights reserved © 2026.
