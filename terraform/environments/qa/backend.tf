@@ -3,7 +3,6 @@ terraform {
     bucket         = "uce-safe-ride-tfstate-qa"
     key            = "qa/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "uce-safe-ride-tf-locks"
     encrypt        = true
   }
 }
