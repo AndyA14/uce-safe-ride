@@ -53184,3 +53184,61 @@
 1782796261: Client mqtt-kafka-bridge disconnected.
 1782796262: mosquitto version 2.0.22 terminating
 1782796262: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1782796334: mosquitto version 2.0.22 starting
+1782796334: Config loaded from /mosquitto/config/mosquitto.conf.
+1782796334: Opening ipv4 listen socket on port 1883.
+1782796334: Opening ipv6 listen socket on port 1883.
+1782796334: Opening websockets listen socket on port 9001.
+1782796334: mosquitto version 2.0.22 running
+1782796344: New connection from ::1:57736 on port 1883.
+1782796344: New client connected from ::1:57736 as auto-C02F4810-1017-F566-14F6-784907222E83 (p2, c1, k60).
+1782796344: Client auto-C02F4810-1017-F566-14F6-784907222E83 disconnected.
+1782796354: New connection from 172.18.0.19:52281 on port 1883.
+1782796354: New client connected from 172.18.0.19:52281 as simulation-service (p2, c1, k60).
+1782796354: New connection from 172.18.0.19:47317 on port 1883.
+1782796354: New client connected from 172.18.0.19:47317 as mqtt-kafka-bridge (p2, c1, k60).
+1782796355: New connection from ::1:36990 on port 1883.
+1782796355: New client connected from ::1:36990 as auto-60AF73F9-6581-70FE-A348-909C7FCCD38F (p2, c1, k60).
+1782796355: Client auto-60AF73F9-6581-70FE-A348-909C7FCCD38F disconnected.
+1782796365: New connection from ::1:40848 on port 1883.
+1782796365: New client connected from ::1:40848 as auto-E294109A-DA84-D6C7-00AA-A27B774326A4 (p2, c1, k60).
+1782796365: Client auto-E294109A-DA84-D6C7-00AA-A27B774326A4 disconnected.
+1782796375: New connection from ::1:40782 on port 1883.
+1782796375: New client connected from ::1:40782 as auto-C0EABDB5-CD65-A791-C4AC-C92B7778A501 (p2, c1, k60).
+1782796375: Client auto-C0EABDB5-CD65-A791-C4AC-C92B7778A501 disconnected.
+1782796385: New connection from ::1:40994 on port 1883.
+1782796385: New client connected from ::1:40994 as auto-5231EC72-86B1-20C1-2570-FE95CC0E3F1E (p2, c1, k60).
+1782796385: Client auto-5231EC72-86B1-20C1-2570-FE95CC0E3F1E disconnected.
+1782796395: New connection from ::1:52188 on port 1883.
+1782796395: New client connected from ::1:52188 as auto-F04E0B56-38E4-97B1-C603-681A0D1C4B8C (p2, c1, k60).
+1782796395: Client auto-F04E0B56-38E4-97B1-C603-681A0D1C4B8C disconnected.
+1782796405: New connection from ::1:44012 on port 1883.
+1782796405: New client connected from ::1:44012 as auto-21961296-F9E0-B74F-98E0-69A62153B657 (p2, c1, k60).
+1782796405: Client auto-21961296-F9E0-B74F-98E0-69A62153B657 disconnected.
+1782796415: New connection from ::1:55658 on port 1883.
+1782796415: New client connected from ::1:55658 as auto-35F52A3F-E12D-7614-DB7B-CA3989FA2651 (p2, c1, k60).
+1782796415: Client auto-35F52A3F-E12D-7614-DB7B-CA3989FA2651 disconnected.
+1782796425: New connection from ::1:57646 on port 1883.
+1782796425: New client connected from ::1:57646 as auto-5865E1E5-1CA7-6DC7-A707-F8E88D4EC232 (p2, c1, k60).
+1782796425: Client auto-5865E1E5-1CA7-6DC7-A707-F8E88D4EC232 disconnected.
+1782796435: New connection from ::1:45792 on port 1883.
+1782796435: New client connected from ::1:45792 as auto-E8F88FFE-ADEF-8477-7AE6-EFEF16A861F7 (p2, c1, k60).
+1782796435: Client auto-E8F88FFE-ADEF-8477-7AE6-EFEF16A861F7 disconnected.
+1782796445: New connection from ::1:42732 on port 1883.
+1782796445: New client connected from ::1:42732 as auto-FE4AA32F-06EF-C4C6-E7BE-C9B0C95E256C (p2, c1, k60).
+1782796445: Client auto-FE4AA32F-06EF-C4C6-E7BE-C9B0C95E256C disconnected.
+1782796455: New connection from ::1:48016 on port 1883.
+1782796455: New client connected from ::1:48016 as auto-29A9BD48-D5A8-E74F-3C68-6895046F6AB1 (p2, c1, k60).
+1782796455: Client auto-29A9BD48-D5A8-E74F-3C68-6895046F6AB1 disconnected.
+1782796465: New connection from ::1:33440 on port 1883.
+1782796465: New client connected from ::1:33440 as auto-8A718BCC-E00E-BA00-9CB5-750507B28233 (p2, c1, k60).
+1782796465: Client auto-8A718BCC-E00E-BA00-9CB5-750507B28233 disconnected.
+1782796475: New connection from ::1:34918 on port 1883.
+1782796475: New client connected from ::1:34918 as auto-0E9B89AF-EC18-B079-21CD-9177ED393E42 (p2, c1, k60).
+1782796475: Client auto-0E9B89AF-EC18-B079-21CD-9177ED393E42 disconnected.
+1782796485: New connection from ::1:46050 on port 1883.
+1782796485: New client connected from ::1:46050 as auto-B4390D95-6C0A-5530-0097-201F910A582E (p2, c1, k60).
+1782796485: Client auto-B4390D95-6C0A-5530-0097-201F910A582E disconnected.
+1782796496: New connection from ::1:36488 on port 1883.
+1782796496: New client connected from ::1:36488 as auto-72EA484C-1558-B1E5-C51B-7D42B45057CA (p2, c1, k60).
+1782796496: Client auto-72EA484C-1558-B1E5-C51B-7D42B45057CA disconnected.
