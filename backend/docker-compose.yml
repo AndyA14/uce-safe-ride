@@ -20,17 +20,12 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: uce
       RABBITMQ_DEFAULT_PASS: uce123
-    # --- AGREGA ESTA SECCIÓN ---
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # ---------------------------
     restart: unless-stopped
-    # UI disponible en:
-    # http://localhost:15672
-    # user: uce | pass: uce123
 
   # ==================================================
   # ZOOKEEPER
@@ -113,6 +108,7 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
+
   # ==================================================
   # REDIS
   # ==================================================
@@ -130,7 +126,7 @@ services:
       timeout: 5s
       retries: 5
 
-# ==================== MQTT Broker ====================
+  # ==================== MQTT Broker ====================
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: mosquitto
@@ -160,9 +156,9 @@ services:
       dockerfile: services/auth-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_auth
-      SECRET_KEY: ${JWT_SECRET_KEY} 
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_ISSUER: ${JWT_ISSUER}
+      SECRET_KEY: uce-safe-ride-secreto-2026
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
+      JWT_ISSUER: uce-safe-ride
       JWT_ALGORITHM: HS256
     depends_on:
       postgres:
@@ -172,6 +168,7 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
+
   # ==================================================
   # STUDENT SERVICE
   # ==================================================
@@ -181,7 +178,7 @@ services:
       dockerfile: services/student-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_student
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
       JWT_ISSUER: uce-safe-ride
     depends_on:
       postgres:
@@ -191,6 +188,7 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
+
   # ==================================================
   # DRIVER SERVICE
   # ==================================================
@@ -200,7 +198,7 @@ services:
       dockerfile: services/driver-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_driver
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: uce
@@ -215,6 +213,7 @@ services:
     networks:
       - uce-net
     restart: unless-stopped
+
   # ==================================================
   # VEHICLE SERVICE
   # ==================================================
@@ -224,7 +223,7 @@ services:
       dockerfile: services/vehicle-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_vehicle
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
       JWT_ISSUER: uce-safe-ride
     depends_on:
       postgres:
@@ -244,7 +243,7 @@ services:
       dockerfile: services/route-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_route
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
       JWT_ISSUER: uce-safe-ride
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
@@ -267,7 +266,7 @@ services:
       dockerfile: services/stop-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/uce_stop
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
     depends_on:
       postgres:
         condition: service_healthy
@@ -293,7 +292,6 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
       RABBITMQ_PASSWORD: uce123
-      
     depends_on:
       kafka:
         condition: service_healthy
@@ -307,7 +305,7 @@ services:
       - uce-net
     restart: unless-stopped
 
-# ==================================================
+  # ==================================================
   # WS GATEWAY 
   # ==================================================
   ws-gateway:
@@ -321,7 +319,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       PYTHONUNBUFFERED: 1
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
       JWT_ALGORITHM: HS256
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_TRIPS: trips
@@ -339,8 +337,7 @@ services:
       - uce-net
     restart: unless-stopped
 
-  
-# ==================================================
+  # ==================================================
   # TRIP SERVICE 
   # ==================================================
   trip-service:
@@ -354,18 +351,15 @@ services:
       - ./services/trip-service:/app
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/uce_trip
-      SECRET_KEY: ${JWT_SECRET_KEY} 
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_ISSUER: ${JWT_ISSUER}
+      SECRET_KEY: uce-safe-ride-secreto-2026
+      JWT_SECRET_KEY: uce-safe-ride-secreto-2026
+      JWT_ISSUER: uce-safe-ride
       JWT_ALGORITHM: HS256
-
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: uce
       RABBITMQ_PASSWORD: uce123
-
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_ENABLED: "true"
-
       ROUTE_SERVICE_URL: http://route-service:8000
       DRIVER_SERVICE_URL: http://driver-service:8000
       VEHICLE_SERVICE_URL: http://vehicle-service:8000
@@ -382,7 +376,7 @@ services:
       - uce-net
     restart: unless-stopped
 
-# ==================================================
+  # ==================================================
   # TRACKING SERVICE 
   # ==================================================
   tracking-service:
@@ -407,7 +401,7 @@ services:
       - uce-net 
     restart: unless-stopped
 
-# ==================== SIMULATION SERVICE ====================
+  # ==================== SIMULATION SERVICE ====================
   simulation-service:
     build: ./services/simulation-service
     container_name: simulation-service
@@ -416,15 +410,12 @@ services:
     environment:
       TRIP_SERVICE_URL: http://trip-service:8000
       ROUTE_SERVICE_URL: http://route-service:8000
-
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
       MQTT_TOPIC: uce/trips/location
-
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_TRIPS: trips
       KAFKA_ENABLED: "true"
-
       SIMULATION_INTERVAL: 2.0
       SIMULATION_SPEED_MULTIPLIER: 1.0
     depends_on:

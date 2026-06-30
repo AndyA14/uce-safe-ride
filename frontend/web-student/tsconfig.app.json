@@ -25,7 +25,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    
+    /* Ignorar deprecación de baseUrl en TS moderno */
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }

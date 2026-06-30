@@ -1,8 +1,16 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '@/types/user';
 import { loginUser as loginUserService, logoutUser } from '@/services/authService';
 import { jwtDecode } from 'jwt-decode';
 import axios from 'axios';
+
+// ✅ Interfaz para tipar el contenido del token JWT
+interface CustomJwtPayload {
+  sub: string;
+  role: UserRole;
+  email: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -33,8 +41,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (storedToken) {
       try {
-        // 1. Decodificar token
-        const decoded: any = jwtDecode(storedToken);
+        // 1. Decodificar token (Tipado correctamente)
+        const decoded = jwtDecode<CustomJwtPayload>(storedToken);
         console.log('[AuthContext] Token decodificado:', {
           sub: decoded.sub,
           role: decoded.role,
@@ -76,8 +84,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               setUser(recoveredUser);
               setToken(storedToken);
             })
-            .catch((err) => {
-              console.warn('⚠️ [AuthContext] No se pudo obtener driver_id:', err.message);
+            .catch((err: unknown) => {
+              const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+              console.warn('⚠️ [AuthContext] No se pudo obtener driver_id:', errorMessage);
               // No bloqueamos el login, se obtendrá en el Dashboard
               setUser(recoveredUser);
               setToken(storedToken);
@@ -86,7 +95,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setUser(recoveredUser);
           setToken(storedToken);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('❌ [AuthContext] Token inválido o expirado:', error);
         logout();
       }
@@ -113,8 +122,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         role
       );
 
-      // 2. Decodificar token
-      const decoded: any = jwtDecode(access_token);
+      // 2. Decodificar token (Tipado correctamente)
+      const decoded = jwtDecode<CustomJwtPayload>(access_token);
       console.log('🔓 Token decodificado:', {
         sub: decoded.sub,
         role: decoded.role,
@@ -127,8 +136,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           realDriverId = await fetchDriverId(access_token);
           console.log('✅ Driver ID obtenido:', realDriverId);
-        } catch (error: any) {
-          console.warn('⚠️ No se pudo obtener driver_id en login:', error.message);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+          console.warn('⚠️ No se pudo obtener driver_id en login:', errorMessage);
           console.warn('   Se obtendrá en el Dashboard');
           // No lanzamos error, continuamos sin driver_id
         }
@@ -162,7 +172,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('='.repeat(60));
 
       return finalUser;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Login fallido:', error);
       localStorage.removeItem('user');
       localStorage.removeItem('token');
@@ -194,22 +204,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       console.log('✅ Driver ID obtenido:', driverId);
       return driverId;
-    } catch (error: any) {
-      // Logging detallado del error
-      if (error.response) {
-        console.error('❌ Error HTTP:', {
-          status: error.response.status,
-          data: error.response.data,
-        });
-      } else if (error.request) {
-        console.error('❌ Sin respuesta del servidor:', error.message);
-      } else {
-        console.error('❌ Error:', error.message);
-      }
+    } catch (error: unknown) {
+      // ✅ Validación correcta de errores de Axios en TypeScript
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          console.error('❌ Error HTTP:', {
+            status: error.response.status,
+            data: error.response.data,
+          });
+          throw new Error(`No se pudo obtener driver_id: ${error.response.status}`);
+        } else if (error.request) {
+          console.error('❌ Sin respuesta del servidor:', error.message);
+          throw new Error(`No se pudo obtener driver_id: ${error.message}`);
+        }
+      } 
       
-      throw new Error(
-        `No se pudo obtener driver_id: ${error.response?.status || error.message}`
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('❌ Error:', errorMessage);
+      throw new Error(`No se pudo obtener driver_id: ${errorMessage}`);
     }
   };
 
