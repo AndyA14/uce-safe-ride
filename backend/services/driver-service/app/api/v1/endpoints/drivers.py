@@ -13,7 +13,7 @@ from app.api.v1.schemas.drivers import (
     DriverOut,
     DriverStatusUpdateIn,
 )
-from messaging.rabbitmq.publisher import publish_notification
+from app.messaging.rabbitmq.publisher import publish_notification
 
 router = APIRouter()
 

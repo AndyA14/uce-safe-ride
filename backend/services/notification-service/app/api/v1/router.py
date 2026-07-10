@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from api.v1.endpoints import health, notifications
+from app.api.v1.endpoints import health, notifications
 
 api_router = APIRouter()
 
