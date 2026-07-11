@@ -1,0 +1,57 @@
+name: SonarQube Analysis - UCE Safe Ride
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para que SonarQube analice correctamente el historial (blame)
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # Paso para el Student Service
+      - name: Install dependencies & run tests (Student Service)
+        working-directory: backend/services/student-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov httpx
+          pytest tests/ --cov=app --cov-report=xml
+
+      # Paso para el Vehicle Service
+      - name: Install dependencies & run tests (Vehicle Service)
+        working-directory: backend/services/vehicle-service
+        run: |
+          pip install -r requirements.txt
+          pytest tests/ --cov=app --cov-report=xml
+
+      # Aquí agregarás los bloques para los otros 8 microservicios conforme los vayas terminando
+      # ...
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
