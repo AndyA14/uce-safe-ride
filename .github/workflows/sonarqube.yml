@@ -42,8 +42,40 @@ jobs:
           pip install -r requirements.txt
           pytest tests/ --cov=app --cov-report=xml
 
-      # Aquí agregarás los bloques para los otros 8 microservicios conforme los vayas terminando
-      # ...
+      # Paso para el Auth Service
+      - name: Install dependencies & run tests (Auth Service)
+        working-directory: backend/services/auth-service
+        run: |
+          pip install -r requirements.txt
+          pytest tests/ --cov=app --cov-report=xml
+
+      # Paso para el Driver Service
+      - name: Install dependencies & run tests (Driver Service)
+        working-directory: backend/services/driver-service
+        run: |
+          pip install -r requirements.txt
+          pytest tests/ --cov=app --cov-report=xml
+
+      # Paso para el Notification Service
+      - name: Install dependencies & run tests (Notification Service)
+        working-directory: backend/services/notification-service
+        run: |
+          pip install -r requirements.txt
+          pytest tests/ --cov=app --cov-report=xml
+
+      # Paso para el Route Service
+      - name: Install dependencies & run tests (Route Service)
+        working-directory: backend/services/route-service
+        run: |
+          pip install -r requirements.txt
+          pytest tests/ --cov=app --cov-report=xml
+
+      # Paso para el Stop Service
+      - name: Install dependencies & run tests (Stop Service)
+        working-directory: backend/services/stop-service
+        run: |
+          pip install -r requirements.txt
+          pytest tests/ --cov=app --cov-report=xml
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
