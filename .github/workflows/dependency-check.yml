@@ -1,0 +1,61 @@
+name: Auditoría de Seguridad - Dependency-Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - qa
+      - main
+      - master
+  pull_request:
+    branches:
+      - qa
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan:
+    name: Análisis OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout del código fuente
+        uses: actions/checkout@v4
+
+      - name: Ejecutar OWASP Dependency-Check
+        id: dependency-check
+        uses: dependency-check/Dependency-Check_Action@main
+        continue-on-error: true
+        with:
+          project: "UCE Safe Ride - ${{ github.repository }}"
+          path: "."
+          format: "HTML"
+          out: "reports"
+          # Si el escaneo tarda demasiado o falla por las dependencias de Node, 
+          # puedes descomentar las siguientes dos líneas para ignorarlas:
+          # args: >
+          #   --disableNodeAudit
+
+      - name: Verificar reporte generado
+        if: always()
+        shell: bash
+        run: |
+          echo "Contenido de la carpeta reports:"
+          if [ -d "reports" ]; then
+            find reports -maxdepth 2 -type f -print
+          else
+            echo "La carpeta reports no fue creada."
+          fi
+
+      - name: Subir reporte de vulnerabilidades
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-seguridad-owasp-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14

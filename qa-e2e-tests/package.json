@@ -1,0 +1,17 @@
+{
+  "name": "qa-e2e-tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "cucumber-js --require \"steps/**/*.js\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cucumber/cucumber": "^13.2.0",
+    "chromedriver": "^150.0.4",
+    "selenium-webdriver": "^4.46.0"
+  }
+}
